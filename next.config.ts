@@ -22,10 +22,10 @@ const nextConfig: NextConfig = {
     
     return config;
   },
-  // Configuración para optimizar chunks
-  experimental: {
-    optimizeCss: true,
-  },
+  // Configuración para optimizar chunks - deshabilitado por error de build
+  // experimental: {
+  //   optimizeCss: true,
+  // },
 };
 
 export default nextConfig;

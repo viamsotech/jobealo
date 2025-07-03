@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import jsPDF from 'jspdf'
 import type { CVData } from "@/components/cv-builder"
 
@@ -74,21 +74,7 @@ export function usePDFDownload() {
         currentY += lines.length * fontSize * 1.2 + 5
       }
 
-      // Función para agregar texto en posición específica
-      const addTextAt = (text: string, x: number, y: number, fontSize: number, isBold: boolean = false, color: string = 'black', align: 'left' | 'center' | 'right' = 'left') => {
-        doc.setFontSize(fontSize)
-        doc.setFont('helvetica', isBold ? 'bold' : 'normal')
-        
-        if (color === 'black') {
-          doc.setTextColor(0, 0, 0)
-        } else if (color === 'gray') {
-          doc.setTextColor(85, 85, 85)
-        } else if (color === 'lightgray') {
-          doc.setTextColor(128, 128, 128)
-        }
-        
-        doc.text(text, x, y, { align: align })
-      }
+
 
       // Función para agregar línea horizontal con color
       const addSectionLine = () => {
@@ -106,7 +92,7 @@ export function usePDFDownload() {
       }
 
       // ========== HEADER ==========
-      let headerStartY = currentY
+      const headerStartY = currentY
 
       // Si hay foto de perfil
       if (cvData.personalInfo.photo.enabled && cvData.personalInfo.photo.url) {

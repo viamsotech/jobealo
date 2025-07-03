@@ -164,7 +164,7 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
     setCurrentStep(stepIndex)
   }
 
-  const updateCVData = (section: string, data: any) => {
+  const updateCVData = (section: string, data: unknown) => {
     setCVData((prev) => ({
       ...prev,
       [section]: data,

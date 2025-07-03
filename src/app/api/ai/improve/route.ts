@@ -49,25 +49,27 @@ export async function POST(request: NextRequest) {
       type
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error en API de mejora con IA:', error);
 
     // Manejar diferentes tipos de errores
-    if (error.message?.includes('API key')) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    if (errorMessage.includes('API key')) {
       return NextResponse.json(
         { error: 'Configuración de OpenAI incorrecta' },
         { status: 500 }
       );
     }
 
-    if (error.message?.includes('quota') || error.message?.includes('billing')) {
+    if (errorMessage.includes('quota') || errorMessage.includes('billing')) {
       return NextResponse.json(
         { error: 'Límite de uso de OpenAI alcanzado' },
         { status: 429 }
       );
     }
 
-    if (error.message?.includes('rate limit')) {
+    if (errorMessage.includes('rate limit')) {
       return NextResponse.json(
         { error: 'Muchas solicitudes, intenta en unos momentos' },
         { status: 429 }

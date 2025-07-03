@@ -83,11 +83,12 @@ export function useAI(): UseAIResult {
 
       return data.improved;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.message || 'Error desconocido',
+        error: errorMessage,
         isImproving: {
           ...prev.isImproving,
           [key]: false

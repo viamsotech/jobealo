@@ -16,7 +16,7 @@ import { useAI, useAINotifications } from "@/hooks/useAI"
 interface CVSectionsProps {
   currentStep: number
   cvData: CVData
-  updateCVData: (section: string, data: any) => void
+  updateCVData: (section: string, data: unknown) => void
   onNext: () => void
   onPrevious: () => void
   onReview: () => void
@@ -120,7 +120,7 @@ export function CVSections({
         titles: improved,
       })
       showSuccess('¡Títulos mejorados con IA!')
-    } catch (error) {
+    } catch {
       showError('Error al mejorar títulos con IA')
     }
   }
@@ -135,7 +135,7 @@ export function CVSections({
       const improved = await improve('summary', cvData.summary, undefined, 'summary')
       updateCVData("summary", improved[0] || cvData.summary)
       showSuccess('¡Resumen mejorado con IA!')
-    } catch (error) {
+    } catch {
       showError('Error al mejorar resumen con IA')
     }
   }
@@ -150,7 +150,7 @@ export function CVSections({
       const improved = await improve('skills', cvData.skills, undefined, 'skills')
       updateCVData("skills", improved)
       showSuccess('¡Competencias mejoradas con IA!')
-    } catch (error) {
+    } catch {
       showError('Error al mejorar competencias con IA')
     }
   }
@@ -165,7 +165,7 @@ export function CVSections({
       const improved = await improve('tools', cvData.tools, undefined, 'tools')
       updateCVData("tools", improved)
       showSuccess('¡Herramientas mejoradas con IA!')
-    } catch (error) {
+    } catch {
       showError('Error al mejorar herramientas con IA')
     }
   }
@@ -189,7 +189,7 @@ export function CVSections({
       newExp[expIndex].responsibilities[respIndex] = improved[0] || responsibility
       updateCVData("experience", newExp)
       showSuccess('¡Responsabilidad mejorada con IA!')
-    } catch (error) {
+    } catch {
       showError('Error al mejorar responsabilidad con IA')
     }
   }
@@ -213,7 +213,7 @@ export function CVSections({
       newExp[expIndex].responsibilities = improved
       updateCVData("experience", newExp)
       showSuccess('¡Todas las responsabilidades mejoradas con IA!')
-    } catch (error) {
+    } catch {
       showError('Error al mejorar responsabilidades con IA')
     }
   }
@@ -230,7 +230,7 @@ export function CVSections({
       setShowSuggestions(true)
       setAddedSuggestions(new Set()) // Limpiar tracking de sugerencias anteriores
       showSuccess('¡Sugerencias de títulos generadas!')
-    } catch (error) {
+    } catch {
       showError('Error al generar sugerencias de títulos')
       setShowSuggestions(false)
     }
@@ -262,7 +262,7 @@ export function CVSections({
       setShowSkillSuggestions(true)
       setAddedSkillSuggestions(new Set()) // Limpiar tracking de sugerencias anteriores
       showSuccess('¡Sugerencias de competencias generadas!')
-    } catch (error) {
+    } catch {
       showError('Error al generar sugerencias de competencias')
       setShowSkillSuggestions(false)
     }
@@ -291,7 +291,7 @@ export function CVSections({
       setShowToolSuggestions(true)
       setAddedToolSuggestions(new Set()) // Limpiar tracking de sugerencias anteriores
       showSuccess('¡Sugerencias de herramientas generadas!')
-    } catch (error) {
+    } catch {
       showError('Error al generar sugerencias de herramientas')
       setShowToolSuggestions(false)
     }
@@ -327,7 +327,7 @@ export function CVSections({
       setShowExperienceSuggestions(prev => ({ ...prev, [expIndex]: true }))
       setAddedExperienceSuggestions(prev => ({ ...prev, [expIndex]: new Set() })) // Limpiar tracking
       showSuccess('¡Responsabilidades orientadas a logros generadas!')
-    } catch (error) {
+    } catch {
       showError('Error al generar sugerencias de responsabilidades')
       setShowExperienceSuggestions(prev => ({ ...prev, [expIndex]: false }))
     }
