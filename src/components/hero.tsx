@@ -8,10 +8,10 @@ interface HeroProps {
 
 export function Hero({ onStartBuilder }: HeroProps) {
   return (
-    <section className="py-20 px-4 md:px-6">
+    <section className="py-8 md:py-20 px-4 md:px-6">
       <div className="container mx-auto max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          <div className="space-y-8">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+          <div className="space-y-6 md:space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
                 Constructor de CV con IA.

@@ -276,9 +276,10 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-4">
+      <div className="sticky top-0 z-50 bg-white border-b">
+        {/* Nivel 1: Botón volver + Logo */}
+        <div className="px-4 py-3 border-b md:border-b-0">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
             <Button variant="ghost" size="sm" onClick={onBack} className="flex items-center space-x-2">
               <ArrowLeft className="w-4 h-4" />
               <span>Volver</span>
@@ -290,8 +291,14 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
               height={30}
               className="h-8 w-auto"
             />
+            {/* Espaciador para mantener el logo centrado */}
+            <div className="w-[72px]"></div>
           </div>
-          <div className="flex items-center space-x-4">
+        </div>
+        
+        {/* Nivel 2: Herramientas (solo visible en mobile) */}
+        <div className="px-4 py-3 md:hidden">
+          <div className="flex items-center justify-center space-x-3 max-w-7xl mx-auto">
             <ColorPicker
               selectedColor={cvData.headerColor}
               onColorChange={(color) => updateCVData("headerColor", color)}
@@ -303,11 +310,13 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
               className="flex items-center space-x-2"
             >
               <Eye className="w-4 h-4" />
-              <span>Previsualizar</span>
+              <span className="hidden sm:inline">Previsualizar</span>
+              <span className="sm:hidden">Vista</span>
             </Button>
             <Button 
               onClick={handleDownloadPDF}
               disabled={isGenerating || !canDownloadPDF}
+              size="sm"
               className={`flex items-center space-x-2 ${!canDownloadPDF ? 'bg-gray-300 cursor-not-allowed' : ''}`}
               title={!canDownloadPDF ? 'Complete todos los pasos para habilitar la descarga' : ''}
             >
@@ -316,8 +325,56 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
               ) : (
                 <Download className="w-4 h-4" />
               )}
-              <span>{isGenerating ? 'Generando PDF...' : 'Descargar PDF'}</span>
+              <span className="hidden sm:inline">{isGenerating ? 'Generando PDF...' : 'Descargar PDF'}</span>
+              <span className="sm:hidden">PDF</span>
             </Button>
+          </div>
+        </div>
+        
+        {/* Header Desktop - Una sola línea (solo visible en desktop) */}
+        <div className="hidden md:block px-4 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" onClick={onBack} className="flex items-center space-x-2">
+                <ArrowLeft className="w-4 h-4" />
+                <span>Volver</span>
+              </Button>
+              <Image
+                src="/images/jobealologo2.svg"
+                alt="Jobealo"
+                width={120}
+                height={30}
+                className="h-8 w-auto"
+              />
+            </div>
+            <div className="flex items-center space-x-4">
+              <ColorPicker
+                selectedColor={cvData.headerColor}
+                onColorChange={(color) => updateCVData("headerColor", color)}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPreview(true)}
+                className="flex items-center space-x-2"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Previsualizar</span>
+              </Button>
+              <Button 
+                onClick={handleDownloadPDF}
+                disabled={isGenerating || !canDownloadPDF}
+                className={`flex items-center space-x-2 ${!canDownloadPDF ? 'bg-gray-300 cursor-not-allowed' : ''}`}
+                title={!canDownloadPDF ? 'Complete todos los pasos para habilitar la descarga' : ''}
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>{isGenerating ? 'Generando PDF...' : 'Descargar PDF'}</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
