@@ -5,6 +5,36 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Interface para CV data
+interface CVData {
+  personalInfo: {
+    titles: string[];
+  };
+  summary: string;
+  skills: string[];
+  tools: string[];
+  experience: Array<{
+    position: string;
+    company: string;
+    responsibilities: string[];
+  }>;
+  education: Array<{
+    degree: string;
+    level: string;
+  }>;
+  certifications: {
+    enabled: boolean;
+    items: Array<{
+      name: string;
+      institution: string;
+    }>;
+  };
+  languages: Array<{
+    language: string;
+    level: string;
+  }>;
+}
+
 // Tipos para las diferentes mejoras
 export type ImprovementType = 
   | 'titles' 
@@ -16,7 +46,8 @@ export type ImprovementType =
   | 'title-suggestions'
   | 'skill-suggestions'
   | 'tool-suggestions'
-  | 'experience-suggestions';
+  | 'experience-suggestions'
+  | 'translate-to-english';
 
 // Prompts para cada tipo de mejora
 const PROMPTS = {
@@ -128,6 +159,10 @@ EVITA frases genéricas como:
 Responde ÚNICAMENTE con máximo 5 responsabilidades orientadas a logros, una por línea, sin numeración, sin bullets, sin texto adicional.
 
 Descripción de lo que hizo en el trabajo:`,
+
+  'translate-to-english': `Traduce EXACTAMENTE el siguiente texto del español al inglés de manera profesional y natural. Mantén el mismo formato y estructura. Para términos técnicos, usa la terminología estándar en inglés. NO agregues explicaciones ni texto adicional.
+
+Texto a traducir:`,
 };
 
 export async function improveWithAI(
@@ -232,6 +267,144 @@ export async function improveWithAI(
 
   } catch (error) {
     console.error('Error en improveWithAI:', error);
+    throw error;
+  }
+}
+
+// Función específica para traducir un CV completo al inglés
+export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
+  try {
+    const translatedData = { ...cvData };
+
+    // Traducir títulos profesionales
+    if (cvData.personalInfo.titles.length > 0) {
+      const titlesText = cvData.personalInfo.titles.join('\n');
+      const translatedTitles = await improveWithAI('translate-to-english', titlesText);
+      translatedData.personalInfo = {
+        ...translatedData.personalInfo,
+        titles: translatedTitles
+      };
+    }
+
+    // Traducir resumen profesional
+    if (cvData.summary) {
+      const translatedSummary = await improveWithAI('translate-to-english', cvData.summary);
+      translatedData.summary = translatedSummary[0] || cvData.summary;
+    }
+
+    // Traducir competencias
+    if (cvData.skills.length > 0) {
+      const skillsText = cvData.skills.join('\n');
+      const translatedSkills = await improveWithAI('translate-to-english', skillsText);
+      translatedData.skills = translatedSkills;
+    }
+
+    // Traducir herramientas
+    if (cvData.tools.length > 0) {
+      const toolsText = cvData.tools.join('\n');
+      const translatedTools = await improveWithAI('translate-to-english', toolsText);
+      translatedData.tools = translatedTools;
+    }
+
+    // Traducir experiencia laboral
+    if (cvData.experience.length > 0) {
+      const translatedExperience = await Promise.all(
+        cvData.experience.map(async (exp) => {
+          const translatedExp = { ...exp };
+          
+          // Traducir puesto
+          if (exp.position) {
+            const translatedPosition = await improveWithAI('translate-to-english', exp.position);
+            translatedExp.position = translatedPosition[0] || exp.position;
+          }
+          
+          // Traducir responsabilidades
+                      if (exp.responsibilities.length > 0) {
+              const responsibilitiesText = exp.responsibilities.filter((r) => r.trim()).join('\n');
+            if (responsibilitiesText) {
+              const translatedResponsibilities = await improveWithAI('translate-to-english', responsibilitiesText);
+              translatedExp.responsibilities = translatedResponsibilities;
+            }
+          }
+          
+          return translatedExp;
+        })
+      );
+      translatedData.experience = translatedExperience;
+    }
+
+    // Traducir educación
+    if (cvData.education.length > 0) {
+      const translatedEducation = await Promise.all(
+        cvData.education.map(async (edu) => {
+          const translatedEdu = { ...edu };
+          
+          // Traducir título/carrera
+          if (edu.degree) {
+            const translatedDegree = await improveWithAI('translate-to-english', edu.degree);
+            translatedEdu.degree = translatedDegree[0] || edu.degree;
+          }
+          
+          // Traducir nivel
+          if (edu.level) {
+            const translatedLevel = await improveWithAI('translate-to-english', edu.level);
+            translatedEdu.level = translatedLevel[0] || edu.level;
+          }
+          
+          return translatedEdu;
+        })
+      );
+      translatedData.education = translatedEducation;
+    }
+
+    // Traducir certificaciones
+    if (cvData.certifications.enabled && cvData.certifications.items.length > 0) {
+      const translatedCertifications = await Promise.all(
+        cvData.certifications.items.map(async (cert) => {
+          const translatedCert = { ...cert };
+          
+          if (cert.name) {
+            const translatedName = await improveWithAI('translate-to-english', cert.name);
+            translatedCert.name = translatedName[0] || cert.name;
+          }
+          
+          return translatedCert;
+        })
+      );
+      translatedData.certifications = {
+        ...translatedData.certifications,
+        items: translatedCertifications
+      };
+    }
+
+    // Traducir idiomas
+    if (cvData.languages.length > 0) {
+      const translatedLanguages = await Promise.all(
+        cvData.languages.map(async (lang) => {
+          const translatedLang = { ...lang };
+          
+          // Traducir nombre del idioma
+          if (lang.language) {
+            const translatedLanguage = await improveWithAI('translate-to-english', lang.language);
+            translatedLang.language = translatedLanguage[0] || lang.language;
+          }
+          
+          // Traducir nivel
+          if (lang.level) {
+            const translatedLevel = await improveWithAI('translate-to-english', lang.level);
+            translatedLang.level = translatedLevel[0] || lang.level;
+          }
+          
+          return translatedLang;
+        })
+      );
+      translatedData.languages = translatedLanguages;
+    }
+
+    return translatedData;
+
+  } catch (error) {
+    console.error('Error en translateCVToEnglish:', error);
     throw error;
   }
 } 

@@ -2,9 +2,23 @@ import type { CVData } from "@/components/cv-builder"
 
 interface CVPreviewProps {
   data: CVData
+  isEnglishVersion?: boolean
 }
 
-export function CVPreview({ data }: CVPreviewProps) {
+export function CVPreview({ data, isEnglishVersion = false }: CVPreviewProps) {
+  // Traducciones de secciones
+  const translations = {
+    professionalSummary: isEnglishVersion ? "PROFESSIONAL SUMMARY" : "RESUMEN PROFESIONAL",
+    coreCompetencies: isEnglishVersion ? "CORE COMPETENCIES" : "COMPETENCIAS PRINCIPALES", 
+    toolsTech: isEnglishVersion ? "TOOLS & TECHNOLOGIES" : "HERRAMIENTAS & TECNOLOGÍAS",
+    professionalExperience: isEnglishVersion ? "PROFESSIONAL EXPERIENCE" : "EXPERIENCIA PROFESIONAL",
+    education: isEnglishVersion ? "EDUCATION" : "EDUCACIÓN",
+    certifications: isEnglishVersion ? "CERTIFICATIONS" : "CERTIFICACIONES",
+    languages: isEnglishVersion ? "LANGUAGES" : "IDIOMAS",
+    references: isEnglishVersion ? "REFERENCES" : "REFERENCIAS",
+    years: isEnglishVersion ? "years" : "años"
+  }
+
   const formatContactInfo = () => {
     const contacts: string[] = []
     
@@ -37,7 +51,7 @@ export function CVPreview({ data }: CVPreviewProps) {
             contacts.push(info.value)
             break
           case "age":
-            contacts.push(`${info.value} años`)
+            contacts.push(`${info.value} ${translations.years}`)
             break
           case "nationality":
             contacts.push(info.value)
@@ -76,7 +90,9 @@ export function CVPreview({ data }: CVPreviewProps) {
               {data.personalInfo.firstName} {data.personalInfo.lastName}
             </h1>
             {data.personalInfo.titles.length > 0 && (
-              <h2 className="text-lg font-semibold text-gray-700">{data.personalInfo.titles.join(" | ")}</h2>
+              <h2 className="text-lg font-semibold text-gray-700 break-words leading-relaxed">
+                {data.personalInfo.titles.join(" | ")}
+              </h2>
             )}
             {formatContactInfo() && <p className="text-sm text-gray-600">{formatContactInfo()}</p>}
           </div>
@@ -86,7 +102,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.summary && (
           <div>
             <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-              RESUMEN PROFESIONAL
+              {translations.professionalSummary}
             </h3>
             <p className="text-gray-700 leading-relaxed">{data.summary}</p>
           </div>
@@ -96,7 +112,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.skills.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-              COMPETENCIAS PRINCIPALES
+              {translations.coreCompetencies}
             </h3>
             <div className="text-gray-700">
               {data.skills.map((skill, index) => (
@@ -113,7 +129,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.tools.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-              HERRAMIENTAS & TECNOLOGÍAS
+              {translations.toolsTech}
             </h3>
             <div className="text-gray-700">
               {data.tools.map((tool, index) => (
@@ -130,7 +146,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.experience.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-              EXPERIENCIA PROFESIONAL
+              {translations.professionalExperience}
             </h3>
             <div className="space-y-4">
               {data.experience.map((exp, index) => (
@@ -160,7 +176,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.education.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-              EDUCACIÓN
+              {translations.education}
             </h3>
             <div className="space-y-2">
               {data.education.map((edu, index) => (
@@ -179,7 +195,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.certifications.enabled && data.certifications.items.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-              CERTIFICACIONES
+              {translations.certifications}
             </h3>
             <div className="space-y-2">
               {data.certifications.items.map((cert, index) => (
@@ -195,7 +211,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.languages.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-              IDIOMAS
+              {translations.languages}
             </h3>
             <div className="text-gray-700">
               {data.languages.map((lang, index) => (
@@ -212,7 +228,7 @@ export function CVPreview({ data }: CVPreviewProps) {
         {data.references.enabled && data.references.items.length > 0 && (
           <div>
             <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-              REFERENCIAS
+              {translations.references}
             </h3>
             <div className="space-y-2">
               {data.references.items.map((ref, index) => (

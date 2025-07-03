@@ -498,11 +498,18 @@ export function CVSections({
           <Card>
             <CardHeader>
               <CardTitle>Título / Área de Expertise</CardTitle>
-              <p className="text-sm text-gray-600">Máximo 5 títulos. Aparecerán separados por | en tu CV.</p>
+              <p className="text-sm text-gray-600">
+                <strong>¿Qué es un título profesional?</strong> Es una frase corta que te define profesionalmente. 
+                Describe tu rol, especialidad o expertise principal. NO es una carta de presentación.
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                <strong>Ejemplos:</strong> &quot;Desarrollador Frontend&quot; | &quot;Contador Público&quot; | &quot;Especialista en Marketing Digital&quot; | &quot;5 años de experiencia&quot;
+              </p>
+              <p className="text-sm text-gray-600 mt-2">Máximo 5 títulos. Aparecerán separados por | en tu CV.</p>
               {/* Ejemplo visual */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                 <p className="text-xs font-medium text-blue-800 mb-1">📋 Ejemplo de cómo se verán en tu CV:</p>
-                <p className="text-sm text-blue-700 font-medium">Ingeniero Civil | Experto en Carreteras | 10 años de experiencia</p>
+                <p className="text-sm text-blue-700 font-medium break-words leading-relaxed">Ingeniero Civil | Experto en Carreteras | 10 años de experiencia</p>
               </div>
               <p className="text-xs text-blue-600">💡 Haz clic en la ✕ para eliminar un título</p>
             </CardHeader>
@@ -594,14 +601,14 @@ export function CVSections({
                     <h3 className="font-medium text-purple-800">Generador de Títulos con IA</h3>
                   </div>
                   <p className="text-sm text-purple-700 mb-3">
-                    Cuéntame qué has hecho en los últimos años a nivel profesional o estudiantil y te daré ejemplos de títulos:
+                    Cuéntame qué has hecho en los últimos años a nivel profesional o estudiantil y te daré ejemplos de títulos profesionales que te definan:
                   </p>
                   
                   <div className="space-y-3">
                     <Textarea
                       value={experienceInput}
                       onChange={(e) => setExperienceInput(e.target.value)}
-                      placeholder="Ej: Soy ingeniero civil con 10 años de experiencia en construcción de carreteras y puentes. He liderado equipos de hasta 50 personas y gestionado proyectos de más de $5M..."
+                      placeholder="Ej: Soy ingeniero civil con 10 años de experiencia en construcción de carreteras y puentes. He liderado equipos de hasta 50 personas y gestionado proyectos de más de $5M. Me especializo en análisis estructural y supervisión de obras..."
                       className="min-h-20 bg-white border-purple-200 focus:border-purple-400"
                       maxLength={500}
                     />

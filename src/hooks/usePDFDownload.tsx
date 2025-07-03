@@ -108,14 +108,24 @@ export function usePDFDownload() {
       const nameWidth = doc.getTextWidth(fullName)
       doc.text(fullName, (pageWidth - nameWidth) / 2, headerStartY + 30)
 
-      // Títulos centrados
+      // Títulos centrados con text wrapping
+      let titleLinesCount = 0
       if (cvData.personalInfo.titles.length > 0) {
         const titlesText = cvData.personalInfo.titles.join(' | ')
         doc.setFontSize(14)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(85, 85, 85)
-        const titlesWidth = doc.getTextWidth(titlesText)
-        doc.text(titlesText, (pageWidth - titlesWidth) / 2, headerStartY + 55)
+        
+        // Dividir texto en líneas si es muy largo
+        const titleLines = doc.splitTextToSize(titlesText, usableWidth)
+        titleLinesCount = titleLines.length
+        
+        // Centrar cada línea
+        titleLines.forEach((line: string, index: number) => {
+          const lineWidth = doc.getTextWidth(line)
+          const x = (pageWidth - lineWidth) / 2
+          doc.text(line, x, headerStartY + 55 + (index * 16))
+        })
       }
 
       // Información de contacto centrada - cada campo en su propia línea
@@ -170,17 +180,21 @@ export function usePDFDownload() {
         // Dividir texto si es muy largo para el ancho de la página
         const lines = doc.splitTextToSize(contactText, usableWidth)
         
+        // Calcular posición Y para contacto considerando las líneas de títulos
+        const contactStartY = headerStartY + 75 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 16 : 0)
+        
         // Centrar cada línea
         lines.forEach((line: string, index: number) => {
           const lineWidth = doc.getTextWidth(line)
           const x = (pageWidth - lineWidth) / 2
-          doc.text(line, x, headerStartY + 75 + (index * 12))
+          doc.text(line, x, contactStartY + (index * 12))
         })
         
-        // Ajustar currentY basado en el número de líneas de contacto
-        currentY = Math.max(currentY, headerStartY + 90 + (lines.length - 1) * 12)
+        // Ajustar currentY basado en el número de líneas de contacto y títulos
+        currentY = Math.max(currentY, contactStartY + 15 + (lines.length - 1) * 12)
       } else {
-        currentY = Math.max(currentY, headerStartY + 90)
+        // Si no hay contacto, ajustar currentY considerando solo los títulos
+        currentY = Math.max(currentY, headerStartY + 90 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 16 : 0))
       }
 
       // ========== RESUMEN PROFESIONAL ==========
