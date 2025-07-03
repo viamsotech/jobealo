@@ -8,10 +8,11 @@ interface HeroProps {
 
 export function Hero({ onStartBuilder }: HeroProps) {
   return (
-    <section className="py-8 md:py-20 px-4 md:px-6">
-      <div className="container mx-auto max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div className="space-y-6 md:space-y-8">
+    <section className="py-8 md:py-20 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="grid lg:grid-cols-5 gap-8 lg:gap-12 items-center">
+          {/* Texto - Ocupa 2 columnas */}
+          <div className="lg:col-span-2 space-y-6 md:space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
                 Constructor de CV con IA.
@@ -35,20 +36,23 @@ export function Hero({ onStartBuilder }: HeroProps) {
             </div>
           </div>
 
-          <div className="flex-1 p-0 m-0">
-            <img
-              src="/images/optimizadohero.png"
-              alt="CV optimizado para ATS con diseño profesional"
-              className="w-full h-auto max-w-full rounded-2xl shadow-2xl drop-shadow-xl block m-0 p-0 border-0 outline-0"
-              style={{ 
-                display: 'block',
-                margin: 0,
-                padding: 0,
-                border: 'none',
-                outline: 'none',
-                background: 'transparent'
-              }}
-            />
+          {/* Imagen - Ocupa 3 columnas y es más grande */}
+          <div className="lg:col-span-3">
+            <div className="transform lg:scale-110 lg:translate-x-8 transition-transform duration-300 hover:scale-125 lg:hover:scale-125">
+              <img
+                src="/images/optimizadohero.png"
+                alt="CV optimizado para ATS con diseño profesional"
+                className="w-full h-auto block cursor-pointer drop-shadow-2xl hover:drop-shadow-[0_25px_50px_rgba(0,0,0,0.25)] transition-all duration-300"
+                style={{ 
+                  display: 'block',
+                  border: 'none',
+                  outline: 'none',
+                  boxShadow: 'none',
+                  backgroundColor: 'transparent',
+                  background: 'none',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

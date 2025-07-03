@@ -277,8 +277,8 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-white border-b">
-        {/* Nivel 1: Botón volver + Logo */}
-        <div className="px-4 py-3 border-b md:border-b-0">
+        {/* Nivel 1: Botón volver + Logo (solo mobile) */}
+        <div className="px-4 py-3 border-b md:hidden">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <Button variant="ghost" size="sm" onClick={onBack} className="flex items-center space-x-2">
               <ArrowLeft className="w-4 h-4" />
