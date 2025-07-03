@@ -208,8 +208,53 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
   if (showPreview) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="sticky top-0 z-50 bg-white border-b px-4 py-3">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
+        <div className="sticky top-0 z-50 bg-white border-b">
+          {/* Header Mobile - Layout vertical */}
+          <div className="md:hidden">
+            {/* Nivel 1: Logo */}
+            <div className="px-4 py-3 border-b">
+              <div className="flex justify-center">
+                <Image
+                  src="/images/jobealologo2.svg"
+                  alt="Jobealo"
+                  width={120}
+                  height={30}
+                  className="h-8 w-auto"
+                />
+              </div>
+            </div>
+            
+            {/* Nivel 2: Botones */}
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-center space-x-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={isReviewing ? handleBackToEdit : () => setShowPreview(false)}
+                  className="flex items-center space-x-2"
+                >
+                  <EyeOff className="w-4 h-4" />
+                  <span>{isReviewing ? 'Volver a editar' : 'Cerrar Vista'}</span>
+                </Button>
+                <Button 
+                  onClick={handleDownloadPDF}
+                  disabled={isGenerating || !canDownloadPDF}
+                  size="sm"
+                  className={`flex items-center space-x-2 ${!canDownloadPDF ? 'bg-gray-300 cursor-not-allowed' : ''}`}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{isGenerating ? 'Generando...' : 'Descargar PDF'}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Header Desktop - Layout horizontal */}
+          <div className="hidden md:flex items-center justify-between max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
@@ -242,6 +287,17 @@ export function CVBuilder({ onBack }: CVBuilderProps) {
             </Button>
           </div>
         </div>
+        
+        {/* Mensaje cuando PDF está deshabilitado */}
+        {!canDownloadPDF && (
+          <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+            <div className="max-w-7xl mx-auto text-center">
+              <p className="text-yellow-800 text-sm">
+                ⚠️ Complete todos los pasos del formulario para habilitar la descarga del PDF
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* Mensaje de revisión */}
         {isReviewing && (
