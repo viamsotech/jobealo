@@ -24,39 +24,35 @@ interface UserStats {
 }
 
 interface UseDownloadsReturn {
-  // States
-  fingerprint: BrowserFingerprint | null
-  downloadCheck: DownloadLimitCheck | null
-  userStats: UserStats | null
+  stats: {
+    downloads: number
+    hasFullAccess: boolean
+    remainingFreeDownloads: number
+  }
   isLoading: boolean
   error: string | null
-  
-  // Functions
-  checkDownloadLimit: (language?: 'spanish' | 'english') => Promise<void>
-  recordDownload: (options: {
-    language?: 'spanish' | 'english'
-    fileName?: string
-    amountPaid?: number
-    stripePaymentIntentId?: string
-  }) => Promise<boolean>
-  downloadPDF: (cvData: CVData, language?: 'spanish' | 'english') => Promise<boolean>
-  refreshStats: () => Promise<void>
+  downloadPDF: (data: CVData, language: 'spanish' | 'english') => Promise<boolean>
+  hasFullFeatureAccess: boolean
   checkFullAccess: () => Promise<boolean>
+  fixFingerprintLinking: () => Promise<boolean>
+  isAuthenticated: boolean
+  userPlan: string | null
   
-  // Computed values
-  canDownload: boolean
-  remainingFreeDownloads: number
+  // Legacy properties used by components
+  downloadCheck: DownloadLimitCheck | null
+  userStats: UserStats | null
   isLifetimeUser: boolean
   isProUser: boolean
+  isGeneratingPDF: boolean
+  remainingFreeDownloads: number
+  canDownload: boolean
   needsRegistration: boolean
   needsPayment: boolean
   downloadPrice?: number
-  isGeneratingPDF: boolean
-  hasFullFeatureAccess: boolean
   
-  // Auth states
-  isAuthenticated: boolean
-  userPlan: string | null
+  // New functions
+  checkIndividualPayment: (sessionId: string) => Promise<boolean>
+  checkPaidDownload: () => Promise<{ isPaid: boolean; language: string | null }>
 }
 
 export function useDownloads(): UseDownloadsReturn {
@@ -118,8 +114,8 @@ export function useDownloads(): UseDownloadsReturn {
   }, [fingerprint, session])
 
   // Function to fix fingerprint linking
-  const fixFingerprintLinking = useCallback(async () => {
-    if (!fingerprint || !session?.user?.id) return
+  const fixFingerprintLinking = useCallback(async (): Promise<boolean> => {
+    if (!fingerprint || !session?.user?.id) return false
 
     try {
       const response = await fetch('/api/user/fix-fingerprint', {
@@ -137,11 +133,14 @@ export function useDownloads(): UseDownloadsReturn {
         setTimeout(() => {
           checkDownloadLimitInternal('spanish')
         }, 1000)
+        return true
       } else {
         console.error('❌ Failed to fix fingerprint:', data.error)
+        return false
       }
     } catch (error) {
       console.error('❌ Error fixing fingerprint:', error)
+      return false
     }
   }, [fingerprint, session?.user?.id, checkDownloadLimitInternal])
 
@@ -659,27 +658,81 @@ export function useDownloads(): UseDownloadsReturn {
   const isAuthenticated = status === 'authenticated'
   const userPlan = session?.user?.plan || null
 
+  // Función para verificar si se ha pagado por una descarga individual
+  const checkIndividualPayment = async (sessionId: string) => {
+    try {
+      const response = await fetch('/api/stripe/verify-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to verify payment')
+      }
+
+      const paymentDetails = await response.json()
+      return paymentDetails.type === 'individual_download' && paymentDetails.paymentStatus === 'paid'
+    } catch (error) {
+      console.error('Error checking individual payment:', error)
+      return false
+    }
+  }
+
+  // Función para obtener parámetros de URL
+  const getUrlParams = () => {
+    if (typeof window === 'undefined') return {}
+    
+    const params = new URLSearchParams(window.location.search)
+    return {
+      sessionId: params.get('session_id'),
+      type: params.get('type'),
+      language: params.get('language')
+    }
+  }
+
+  // Verificar si viene de un pago individual exitoso
+  const checkPaidDownload = async () => {
+    const { sessionId, type, language } = getUrlParams()
+    
+    if (sessionId && type === 'individual_download' && language) {
+      const isPaid = await checkIndividualPayment(sessionId)
+      if (isPaid) {
+        // Permitir la descarga inmediatamente
+        return { isPaid: true, language }
+      }
+    }
+    
+    return { isPaid: false, language: null }
+  }
+
   return {
-    fingerprint,
-    downloadCheck,
-    userStats,
+    stats: {
+      downloads: userStats?.totalDownloads ?? 0,
+      hasFullAccess: hasFullFeatureAccess,
+      remainingFreeDownloads: remainingFreeDownloads
+    },
     isLoading,
     error,
-    checkDownloadLimit,
-    recordDownload,
     downloadPDF,
-    refreshStats,
+    hasFullFeatureAccess,
     checkFullAccess,
-    canDownload,
-    remainingFreeDownloads,
+    fixFingerprintLinking,
+    isAuthenticated,
+    userPlan,
+    downloadCheck,
+    userStats,
     isLifetimeUser,
     isProUser,
+    isGeneratingPDF,
+    remainingFreeDownloads,
+    canDownload,
     needsRegistration,
     needsPayment,
     downloadPrice,
-    isGeneratingPDF,
-    isAuthenticated,
-    userPlan,
-    hasFullFeatureAccess
+    checkIndividualPayment,
+    checkPaidDownload
   }
 } 

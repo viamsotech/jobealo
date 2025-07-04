@@ -22,11 +22,11 @@ export interface UserDownloadStats {
 
 export const DOWNLOAD_LIMITS = {
   ANONYMOUS: {
-    spanish: 2,
+    spanish: 3,
     english: 0
   },
   REGISTERED_FREEMIUM: {
-    spanish: 2,
+    spanish: 3,
     english: 0
   },
   REGISTERED_PRO: {
@@ -48,12 +48,12 @@ export const PRICING = {
 
 export const FEATURES = {
   FREEMIUM: [
-    'Acceso completo hasta 2 descargas',
+    'Acceso completo hasta 3 descargas',
     'Plantillas Optimizada ATS premium',
     'Todas las secciones del CV',
     'Mejoras con IA incluidas',
     'Traducciones al inglés con IA incluidas',
-    'Después de 2 descargas:',
+    'Después de 3 descargas:',
     '• Descargas adicionales: $1.99 c/u',
     '• Traducciones al inglés: $1.99 c/u'
   ],
@@ -369,14 +369,14 @@ async function getDownloadLimits(userType: string): Promise<DownloadLimit> {
   const defaultLimits = {
     'ANONYMOUS': {
       user_type: 'ANONYMOUS' as const,
-      free_spanish_limit: 2,
+      free_spanish_limit: 3,
       spanish_price: 1.99,
       english_price: 1.99,
       requires_registration: false
     },
     'REGISTERED_FREEMIUM': {
       user_type: 'REGISTERED_FREEMIUM' as const,
-      free_spanish_limit: 2,
+      free_spanish_limit: 3,
       spanish_price: 1.99,
       english_price: 1.99,
       requires_registration: true

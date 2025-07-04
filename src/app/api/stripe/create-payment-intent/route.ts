@@ -41,14 +41,14 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Plan payment (existing logic)
-      if (!planType || !STRIPE_PRODUCTS[planType]) {
+      if (!planType || !(planType in STRIPE_PRODUCTS)) {
         return NextResponse.json(
           { error: 'Invalid plan type' },
           { status: 400 }
         )
       }
 
-      const plan = STRIPE_PRODUCTS[planType]
+      const plan = STRIPE_PRODUCTS[planType as PlanType]
       paymentAmount = Math.round(plan.price * 100)
       description = `${plan.name} Plan`
       metadata = {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       clientSecret: paymentIntent.client_secret,
       amount: paymentAmount,
       type: type || 'plan',
-      ...(planType && { planType, planName: STRIPE_PRODUCTS[planType].name }),
+      ...(planType && { planType, planName: STRIPE_PRODUCTS[planType as PlanType].name }),
     })
 
   } catch (error) {

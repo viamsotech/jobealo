@@ -20,12 +20,17 @@ import { useSession } from 'next-auth/react'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
 
 interface PaymentFormProps {
-  planType: PlanType
+  planType?: PlanType
   onSuccess: () => void
   onCancel: () => void
+  individualPayment?: {
+    amount: number
+    language: string
+    description: string
+  }
 }
 
-function CheckoutForm({ planType, onSuccess, onCancel }: PaymentFormProps) {
+function CheckoutForm({ planType, onSuccess, onCancel, individualPayment }: PaymentFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const { data: session } = useSession()
@@ -34,7 +39,12 @@ function CheckoutForm({ planType, onSuccess, onCancel }: PaymentFormProps) {
   const [customerName, setCustomerName] = useState(session?.user?.name || '')
   const [customerEmail, setCustomerEmail] = useState(session?.user?.email || '')
 
-  const plan = STRIPE_PRODUCTS[planType]
+  // Usar datos del pago individual si está disponible, sino usar plan
+  const isIndividualPayment = !!individualPayment
+  const plan = planType ? STRIPE_PRODUCTS[planType] : null
+  const paymentAmount = individualPayment ? individualPayment.amount : plan?.price || 0
+  const paymentDescription = individualPayment ? individualPayment.description : plan?.description || ''
+  const paymentName = individualPayment ? `Descarga Individual (${individualPayment.language === 'english' ? 'Inglés' : 'Español'})` : plan?.name || ''
 
   // Configuración simple - Link se controlará desde el Dashboard de Stripe
   const paymentElementOptions = {
@@ -126,27 +136,46 @@ function CheckoutForm({ planType, onSuccess, onCancel }: PaymentFormProps) {
         {/* Plan Summary */}
         <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-lg">{plan.name}</h3>
+            <h3 className="font-semibold text-lg">{paymentName}</h3>
             <div className="text-right">
-              <div className="text-2xl font-bold text-blue-600">${plan.price}</div>
-              {plan.interval === 'month' && (
+              <div className="text-2xl font-bold text-blue-600">${paymentAmount}</div>
+              {plan?.interval === 'month' && (
                 <div className="text-sm text-gray-500">/mes</div>
               )}
-              {plan.interval === 'one_time' && (
+              {plan?.interval === 'one_time' && (
                 <div className="text-sm text-gray-500">pago único</div>
               )}
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-3">{plan.description}</p>
+          <p className="text-sm text-gray-600 mb-3">{paymentDescription}</p>
           
           {/* Features */}
           <div className="space-y-1">
-            {plan.features.slice(0, 3).map((feature, index) => (
-              <div key={index} className="flex items-center text-sm text-gray-600">
-                <CheckCircle className="w-3 h-3 text-green-500 mr-2 flex-shrink-0" />
-                {feature}
-              </div>
-            ))}
+            {individualPayment ? (
+              // Features for individual payment
+              <>
+                <div className="flex items-center text-sm text-gray-600">
+                  <CheckCircle className="w-3 h-3 text-green-500 mr-2 flex-shrink-0" />
+                  CV optimizado para ATS
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <CheckCircle className="w-3 h-3 text-green-500 mr-2 flex-shrink-0" />
+                  Formato profesional en PDF
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <CheckCircle className="w-3 h-3 text-green-500 mr-2 flex-shrink-0" />
+                  {individualPayment.language === 'english' ? 'Optimizado para mercado internacional' : 'Optimizado para mercado español'}
+                </div>
+              </>
+            ) : (
+              // Features for plan payment
+              plan?.features.slice(0, 3).map((feature, index) => (
+                <div key={index} className="flex items-center text-sm text-gray-600">
+                  <CheckCircle className="w-3 h-3 text-green-500 mr-2 flex-shrink-0" />
+                  {feature}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -206,7 +235,7 @@ function CheckoutForm({ planType, onSuccess, onCancel }: PaymentFormProps) {
             ) : (
               <>
                 <Lock className="w-4 h-4 mr-2" />
-                Completar pago de ${plan.price}
+                Completar pago de ${paymentAmount}
               </>
             )}
           </Button>
@@ -245,14 +274,25 @@ export default function PaymentForm(props: PaymentFormProps) {
   useEffect(() => {
     const createPaymentIntent = async () => {
       try {
-        console.log('Creating payment intent for plan:', props.planType)
+        console.log('Creating payment intent for:', props.planType || 'individual payment')
+        
+        const requestBody = props.individualPayment 
+          ? {
+              type: 'individual_download',
+              amount: Math.round(props.individualPayment.amount * 100), // Convert to cents
+              currency: 'usd',
+              language: props.individualPayment.language
+            }
+          : {
+              planType: props.planType
+            }
         
         const response = await fetch('/api/stripe/create-payment-intent', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ planType: props.planType }),
+          body: JSON.stringify(requestBody),
         })
 
         console.log('Payment intent response status:', response.status)
@@ -274,10 +314,10 @@ export default function PaymentForm(props: PaymentFormProps) {
       }
     }
 
-    if (props.planType) {
+    if (props.planType || props.individualPayment) {
       createPaymentIntent()
     }
-  }, [props.planType])
+  }, [props.planType, props.individualPayment])
 
   const elementsOptions = {
     clientSecret,

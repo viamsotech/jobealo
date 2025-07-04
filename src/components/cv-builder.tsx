@@ -5,18 +5,19 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, ArrowRight, Download, Eye, EyeOff, Save, Loader2, Globe, X, Edit3 } from "lucide-react"
+import { ArrowLeft, ArrowRight, Download, Eye, EyeOff, Save, Loader2, Globe, X, Edit3, BookOpen, Share2 } from "lucide-react"
 import { CVTabs } from "@/components/cv-tabs"
 import { CVSections } from "@/components/cv-sections"
 import { CVPreview } from "@/components/cv-preview"
 import { ColorPicker } from "@/components/color-picker"
-import { useDownloads } from "@/hooks/useDownloads"
+import { useActions } from "@/hooks/useActions"
 import { useSavedCVs } from "@/hooks/useSavedCVs"
 import { useAI } from "@/hooks/useAI"
 import Image from "next/image"
 import { useSession } from "next-auth/react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 // Hook para notificaciones
 function useAINotifications() {
@@ -278,15 +279,29 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
   
   // Hooks para PDF y notificaciones
   const { 
-    downloadPDF, 
-    isGeneratingPDF: isGenerating, 
-    hasFullFeatureAccess, 
-    remainingFreeDownloads,
-    checkFullAccess,
+    checkAction,
+    recordAction,
+    refreshStats,
+    canDownloadSpanish,
+    canDownloadEnglish,
+    canTranslateToEnglish,
+    recordDownloadSpanish,
+    recordDownloadEnglish,
+    recordTranslateToEnglish,
+    isLoading,
+    error,
     userStats,
-    isLifetimeUser,
-    isProUser 
-  } = useDownloads()
+    hasFullAccess,
+    remainingFreeActions,
+    userType
+  } = useActions()
+
+  // Derived values for compatibility
+  const isLifetimeUser = userType === 'LIFETIME'
+  const isProUser = userType === 'PRO'
+  const hasFullFeatureAccess = hasFullAccess
+  const remainingFreeDownloads = remainingFreeActions
+  const isGeneratingPDF = isLoading
   
   const { 
     saveCV, 
@@ -319,8 +334,8 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
 
   // Check full access when component mounts or session changes
   useEffect(() => {
-    checkFullAccess()
-  }, [checkFullAccess])
+    refreshStats()
+  }, [refreshStats])
 
   // Load existing CV if loadCVId is provided
   useEffect(() => {
@@ -489,6 +504,64 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
   const isFlowComplete = completedSections >= totalSections
   const canDownloadPDF = isFlowComplete || isReviewing
 
+  // Create downloadPDF function compatible with old system
+  const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english') => {
+    try {
+      const actionType = language === 'english' ? 'DOWNLOAD_ENGLISH' : 'DOWNLOAD_SPANISH'
+      
+      // Check if action is allowed
+      const check = await checkAction(actionType)
+      if (!check.allowed) {
+        if (check.requiresPayment) {
+          throw new Error(`Payment required: $${check.price}`)
+        } else if (check.requiresRegistration) {
+          throw new Error('Registration required')
+        } else {
+          throw new Error('Action not allowed')
+        }
+      }
+
+      // Generate PDF (using the existing PDF generation logic)
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF()
+      
+      // Add content to PDF (simplified version)
+      doc.setFontSize(20)
+      doc.text(`${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`, 20, 20)
+      
+      if (cvData.personalInfo.titles.length > 0) {
+        doc.setFontSize(14)
+        doc.text(cvData.personalInfo.titles.join(' | '), 20, 35)
+      }
+      
+      if (cvData.summary) {
+        doc.setFontSize(12)
+        doc.text('Professional Summary:', 20, 55)
+        const splitSummary = doc.splitTextToSize(cvData.summary, 170)
+        doc.text(splitSummary, 20, 65)
+      }
+      
+      // Save PDF
+      const fileName = `CV_${cvData.personalInfo.firstName}_${cvData.personalInfo.lastName}_${language}.pdf`
+      doc.save(fileName)
+      
+      // Record the action
+      await recordAction(actionType, {
+        language,
+        fileName,
+        cvData: {
+          name: `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`,
+          titles: cvData.personalInfo.titles
+        }
+      })
+      
+      return true
+    } catch (error) {
+      console.error('Error downloading PDF:', error)
+      throw error
+    }
+  }
+
   const handleDownloadPDF = async () => {
     // Validar que el CV esté completo
     if (!isFlowComplete) {
@@ -549,21 +622,28 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
       return
     }
     
-    // Verificar acceso completo para usuarios freemium
-    if (!hasFullFeatureAccess && !isLifetimeUser && !isProUser) {
-      showError('🔒 Has agotado tus funciones gratuitas. Necesitas un plan Pro o Lifetime para traducir al inglés.')
-      return
-    }
-    
-    // Mostrar mensaje sobre acceso
-    if (hasFullFeatureAccess && !isLifetimeUser && !isProUser) {
-      showSuccess(`🎉 ¡Perfecto! Tienes acceso completo. Te quedan ${remainingFreeDownloads} descargas gratuitas.`)
-    }
-    
-    // Traducir con IA
-    setIsTranslating(true)
-    
+    // Verificar acceso usando el nuevo sistema
     try {
+      const check = await canTranslateToEnglish()
+      if (!check.allowed) {
+        if (check.requiresPayment) {
+          showError(`🔒 Necesitas pagar $${check.price} para traducir al inglés.`)
+        } else if (check.requiresRegistration) {
+          showError('🔒 Necesitas registrarte para traducir al inglés.')
+        } else {
+          showError('🔒 Has agotado tus funciones gratuitas. Necesitas un plan Pro o Lifetime para traducir al inglés.')
+        }
+        return
+      }
+
+      // Mostrar mensaje sobre acceso
+      if (hasFullFeatureAccess && !isLifetimeUser && !isProUser) {
+        showSuccess(`🎉 ¡Perfecto! Tienes acceso completo. Te quedan ${remainingFreeActions} acciones gratuitas.`)
+      }
+      
+      // Traducir con IA
+      setIsTranslating(true)
+      
       // Llamar a la API de traducción real
       const response = await fetch('/api/ai/translate', {
         method: 'POST',
@@ -580,6 +660,16 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
       if (!response.ok) {
         throw new Error(data.error || 'Error al traducir el CV')
       }
+
+      // Registrar la acción de traducción
+      await recordTranslateToEnglish({
+        originalLanguage: 'spanish',
+        targetLanguage: 'english',
+        cvData: {
+          name: `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`,
+          titles: cvData.personalInfo.titles
+        }
+      })
 
       // Usar los datos traducidos realmente por IA
       setTranslatedData(data.translatedCV)
@@ -630,11 +720,11 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
                 </Button>
                 <Button 
                   onClick={handleDownloadPDF}
-                  disabled={isGenerating}
+                  disabled={isGeneratingPDF}
                   size="sm"
                   className="flex items-center space-x-1"
                 >
-                  {isGenerating ? (
+                  {isGeneratingPDF ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Download className="w-4 h-4" />
@@ -671,15 +761,15 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
             <div className="flex items-center space-x-3">
               <Button 
                 onClick={handleDownloadPDF}
-                disabled={isGenerating}
+                disabled={isGeneratingPDF}
                 className="flex items-center space-x-2"
               >
-                {isGenerating ? (
+                {isGeneratingPDF ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Download className="w-4 h-4" />
                 )}
-                <span>{isGenerating ? 'Generating PDF...' : 'Download PDF'}</span>
+                <span>{isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}</span>
               </Button>
             </div>
           </div>
@@ -866,17 +956,17 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
                 </Button>
                 <Button 
                   onClick={handleDownloadPDF}
-                  disabled={isGenerating || !canDownloadPDF}
+                  disabled={isGeneratingPDF || !canDownloadPDF}
                   size="sm"
                   className={`flex items-center space-x-2 ${!canDownloadPDF ? 'bg-gray-300 cursor-not-allowed' : ''}`}
                 >
-                  {isGenerating ? (
+                  {isGeneratingPDF ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Download className="w-4 h-4" />
                   )}
                   <span>
-                    {isGenerating 
+                    {isGeneratingPDF 
                       ? 'Generando...' 
                       : showEnglishPreview 
                         ? 'Descargar PDF (EN)' 

@@ -31,14 +31,14 @@ const pricingPlans: PricingPlan[] = [
   {
     name: 'Freemium',
     price: '$0',
-    description: 'Acceso completo hasta 2 descargas',
+    description: 'Acceso completo hasta 3 descargas',
     features: [
-      { text: 'Acceso completo hasta 2 descargas', included: true },
+      { text: 'Acceso completo hasta 3 descargas', included: true },
       { text: 'Plantillas Optimizada ATS premium', included: true },
       { text: 'Todas las partes del CV', included: true },
       { text: 'Mejoras con IA incluidas', included: true },
       { text: 'Traducciones al inglés con IA incluidas', included: true },
-      { text: 'Después de 2 descargas:', included: true, isPaid: false },
+      { text: 'Después de 3 descargas:', included: true, isPaid: false },
       { text: '• Descargas adicionales $1.99 c/u', included: true, isPaid: true },
       { text: '• Traducciones al inglés $1.99 c/u', included: true, isPaid: true },
     ],

@@ -69,7 +69,43 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const userId = session.metadata?.userId
   const planType = session.metadata?.planType
+  const paymentType = session.metadata?.type
+  const language = session.metadata?.language
 
+  // Handle individual download payments
+  if (paymentType === 'individual_download') {
+    console.log(`Processing individual download payment for language: ${language}`)
+    
+    try {
+      // Record the individual purchase
+      const { error: purchaseError } = await supabase
+        .from('individual_purchases')
+        .insert({
+          user_id: userId, // Can be null for non-registered users
+          stripe_session_id: session.id,
+          amount: (session.amount_total || 0) / 100, // Convert cents to dollars
+          currency: session.currency || 'usd',
+          payment_type: 'INDIVIDUAL_DOWNLOAD',
+          plan_type: null,
+          metadata: {
+            language: language,
+            type: 'individual_download'
+          },
+          created_at: new Date().toISOString()
+        })
+
+      if (purchaseError) {
+        console.error('Error recording individual purchase:', purchaseError)
+      } else {
+        console.log(`Successfully recorded individual download payment for ${language}`)
+      }
+    } catch (error) {
+      console.error('Error processing individual download payment:', error)
+    }
+    return
+  }
+
+  // Handle plan upgrades (existing logic)
   if (!userId || !planType) {
     console.error('Missing metadata in checkout session:', session.id)
     return

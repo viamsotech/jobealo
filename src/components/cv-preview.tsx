@@ -1,12 +1,14 @@
 import type { CVData } from "@/components/cv-builder"
-import { useDownloads } from "@/hooks/useDownloads"
+import { useActions } from "@/hooks/useActions"
 import { useStripePayment } from "@/hooks/useStripePayment"
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Download, Crown, AlertCircle, CheckCircle, Loader2, User, X, CreditCard } from "lucide-react"
-import { useState } from "react"
+import { Download, Crown, AlertCircle, CheckCircle, Loader2, User, X, CreditCard, DollarSign } from "lucide-react"
+import { useState, useEffect } from "react"
+import PaymentModal from './payment/payment-modal'
+import { useSession } from "next-auth/react"
 
 interface CVPreviewProps {
   data: CVData
@@ -21,25 +23,46 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     language: 'spanish' | 'english'
     price: number
   } | null>(null)
+  const [showIndividualPaymentModal, setShowIndividualPaymentModal] = useState(false)
+  const [individualPaymentData, setIndividualPaymentData] = useState<{ amount: number, language: string } | null>(null)
   
+  const { data: session } = useSession()
   const {
-    downloadCheck,
-    userStats,
+    checkAction,
+    recordAction,
+    canDownloadSpanish,
+    canDownloadEnglish,
+    recordDownloadSpanish,
+    recordDownloadEnglish,
     isLoading,
     error,
-    canDownload,
-    remainingFreeDownloads,
-    isLifetimeUser,
-    isProUser,
-    needsRegistration,
-    needsPayment,
-    downloadPrice,
-    downloadPDF,
-    isGeneratingPDF,
-    isAuthenticated,
-    userPlan,
-    hasFullFeatureAccess
-  } = useDownloads()
+    userStats,
+    hasFullAccess,
+    remainingFreeActions,
+    userType
+  } = useActions()
+
+  // Derived values for compatibility
+  const isLifetimeUser = userType === 'LIFETIME'
+  const isProUser = userType === 'PRO'
+  const hasFullFeatureAccess = hasFullAccess
+  const remainingFreeDownloads = remainingFreeActions
+  const isGeneratingPDF = isLoading
+  const isAuthenticated = !!session?.user
+  const userPlan = session?.user?.plan || userType
+
+  // Download state (will be set dynamically)
+  const [downloadState, setDownloadState] = useState<{
+    canDownload: boolean
+    needsRegistration: boolean
+    needsPayment: boolean
+    downloadPrice?: number
+  }>({
+    canDownload: false,
+    needsRegistration: false,
+    needsPayment: false,
+    downloadPrice: 1.99
+  })
 
   const stripePayment = useStripePayment()
 
@@ -101,19 +124,19 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
   }
 
   const handleDownload = async (language: 'spanish' | 'english') => {
-    // Si necesita registro, redirigir a login
-    if (needsRegistration && !isAuthenticated) {
-      signIn()
-      return
-    }
-
-    // Si necesita pago, mostrar modal de pago
+    // Si necesita pago, mostrar modal de pago (sin importar si está registrado o no)
     if (needsPayment && downloadPrice) {
       setPendingDownload({ 
         language, 
         price: downloadPrice 
       })
       setShowPaymentModal(true)
+      return
+    }
+
+    // Si necesita registro pero NO es para pago, redirigir a login
+    if (needsRegistration && !isAuthenticated && !needsPayment) {
+      signIn()
       return
     }
 
@@ -155,22 +178,39 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     if (!pendingDownload) return
 
     try {
-      // Por ahora, redirigir al checkout con un plan LIFETIME como alternativa
-      // En el futuro se puede implementar Stripe Elements para pagos individuales
       setShowPaymentModal(false)
-      setPendingDownload(null)
       
-      // Mostrar mensaje explicando la alternativa
+      // Usar el modal de pago existente para pagos individuales
+      setIndividualPaymentData({
+        amount: pendingDownload.price,
+        language: pendingDownload.language
+      })
+      setShowIndividualPaymentModal(true)
+
+    } catch (error) {
+      console.error('Payment error:', error)
+      
+      // Si falla, mostrar alternativa
       const confirmUpgrade = confirm(
-        `Para descargas adicionales, te recomendamos el plan Lifetime por $59.99 que incluye descargas ilimitadas.\n\n¿Quieres proceder al checkout del plan Lifetime?\n\n(Alternativamente, puedes registrarte para obtener más descargas gratuitas)`
+        `Hubo un error procesando el pago individual. ¿Te gustaría considerar el plan Lifetime por $59.99 que incluye descargas ilimitadas?`
       )
       
       if (confirmUpgrade) {
         window.location.href = '/checkout?plan=LIFETIME'
       }
+    } finally {
+      setPendingDownload(null)
+    }
+  }
 
-    } catch (error) {
-      console.error('Payment error:', error)
+  const handleIndividualPaymentSuccess = () => {
+    setShowIndividualPaymentModal(false)
+    setIndividualPaymentData(null)
+    
+    // Intentar descargar automáticamente después del pago exitoso
+    if (individualPaymentData) {
+      const language = individualPaymentData.language === 'english' ? 'english' : 'spanish'
+      handleDownload(language)
     }
   }
 
@@ -232,28 +272,34 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       )
     }
 
-    if (isAuthenticated && userStats) {
-      if (hasFullFeatureAccess) {
-        return (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="w-4 h-4" />
-              Plan Freemium - Acceso completo hasta {userStats.freeSpanishLimit} descargas ({userStats.freeSpanishUsed} usadas)
-            </div>
-            {getPlanBadge()}
+    if (isAuthenticated && userStats && userStats.stats.totalActions > 0 && !isLifetimeUser && !isProUser && (
+      hasFullFeatureAccess ? (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-blue-800">
+            <CheckCircle className="w-4 h-4" />
+            Plan Freemium - Acceso completo hasta 3 descargas - {remainingFreeDownloads} restantes
           </div>
-        )
-      } else {
-        return (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-orange-600">
-              <AlertCircle className="w-4 h-4" />
-              Acceso completo agotado - Necesitas plan Pro o Lifetime
-            </div>
-            {getPlanBadge()}
+          {getPlanBadge()}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-orange-600">
+            <AlertCircle className="w-4 h-4" />
+            Acceso completo agotado - Necesitas plan Pro o Lifetime
           </div>
-        )
-      }
+          {getPlanBadge()}
+        </div>
+      )
+    )) {
+      return (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-blue-800">
+            <CheckCircle className="w-4 h-4" />
+            Plan Freemium - Acceso completo hasta 3 descargas - {remainingFreeDownloads} restantes
+          </div>
+          {getPlanBadge()}
+        </div>
+      )
     }
 
     if (!isAuthenticated) {
@@ -317,6 +363,87 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     color: data.headerColor,
     borderBottomColor: data.headerColor,
   }
+
+  // Create downloadPDF function
+  const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english') => {
+    try {
+      const actionType = language === 'english' ? 'DOWNLOAD_ENGLISH' : 'DOWNLOAD_SPANISH'
+      const recordFunction = language === 'english' ? recordDownloadEnglish : recordDownloadSpanish
+      
+      // Check if action is allowed
+      const check = await checkAction(actionType)
+      if (!check.allowed) {
+        if (check.requiresPayment) {
+          throw new Error(`Payment required: $${check.price}`)
+        } else if (check.requiresRegistration) {
+          throw new Error('Registration required')
+        } else {
+          throw new Error('Action not allowed')
+        }
+      }
+
+      // Generate PDF (simplified implementation)
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF()
+      
+      // Add content to PDF
+      doc.setFontSize(20)
+      doc.text(`${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`, 20, 20)
+      
+      if (cvData.personalInfo.titles.length > 0) {
+        doc.setFontSize(14)
+        doc.text(cvData.personalInfo.titles.join(' | '), 20, 35)
+      }
+      
+      if (cvData.summary) {
+        doc.setFontSize(12)
+        doc.text('Professional Summary:', 20, 55)
+        const splitSummary = doc.splitTextToSize(cvData.summary, 170)
+        doc.text(splitSummary, 20, 65)
+      }
+      
+      // Save PDF
+      const fileName = `CV_${cvData.personalInfo.firstName}_${cvData.personalInfo.lastName}_${language}.pdf`
+      doc.save(fileName)
+      
+      // Record the action
+      await recordFunction({
+        language,
+        fileName,
+        cvData: {
+          name: `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`,
+          titles: cvData.personalInfo.titles
+        }
+      })
+      
+      return true
+    } catch (error) {
+      console.error('Error downloading PDF:', error)
+      throw error
+    }
+  }
+
+  // Check download status when component mounts
+  useEffect(() => {
+    const checkDownloadStatus = async () => {
+      try {
+        const spanishCheck = await canDownloadSpanish()
+        setDownloadState({
+          canDownload: spanishCheck.allowed,
+          needsRegistration: spanishCheck.requiresRegistration,
+          needsPayment: spanishCheck.requiresPayment,
+          downloadPrice: spanishCheck.price || 1.99
+        })
+      } catch (error) {
+        console.error('Error checking download status:', error)
+      }
+    }
+
+    checkDownloadStatus()
+  }, [canDownloadSpanish])
+
+  // Extract downloadState properties for compatibility
+  const { canDownload, needsRegistration, needsPayment, downloadPrice } = downloadState
 
   return (
     <div className="space-y-6">
@@ -399,8 +526,8 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
                   {isLifetimeUser || isProUser ? (
                     <span className="text-green-600">✨ Acceso ilimitado</span>
                   ) : hasFullFeatureAccess ? (
-                    <span className="text-green-600">
-                      🎉 Acceso completo ({remainingFreeDownloads} restantes)
+                    <span className="text-blue-800">
+                      Plan Freemium - Acceso completo hasta 3 descargas - {remainingFreeDownloads} restantes
                     </span>
                   ) : (
                     <span className="text-orange-600">
@@ -448,7 +575,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
                 <Crown className="w-3 h-3 text-yellow-500" />
               </Button>
 
-              {isAuthenticated && userStats && userStats.totalDownloads > 0 && !isLifetimeUser && !isProUser && (
+              {isAuthenticated && userStats && userStats.stats.totalActions > 0 && !isLifetimeUser && !isProUser && (
                 <Button
                   onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
                   variant="outline"
@@ -725,6 +852,23 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
             </div>
           </div>
         </div>
+      )}
+
+      {/* Individual Payment Modal */}
+      {showIndividualPaymentModal && individualPaymentData && (
+        <PaymentModal
+          isOpen={showIndividualPaymentModal}
+          individualPayment={{
+            amount: individualPaymentData.amount,
+            language: individualPaymentData.language,
+            description: `Descarga individual de CV en ${individualPaymentData.language === 'english' ? 'inglés' : 'español'}`
+          }}
+          onSuccess={handleIndividualPaymentSuccess}
+          onClose={() => {
+            setShowIndividualPaymentModal(false)
+            setIndividualPaymentData(null)
+          }}
+        />
       )}
     </div>
   )

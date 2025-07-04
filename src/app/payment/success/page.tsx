@@ -13,9 +13,13 @@ function PaymentSuccessContent() {
   const { data: session, update } = useSession()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
+  const paymentType = searchParams.get('type')
+  const downloadLanguage = searchParams.get('language')
   const [isLoading, setIsLoading] = useState(true)
   const [paymentDetails, setPaymentDetails] = useState<any>(null)
   const [error, setError] = useState('')
+
+  const isIndividualPayment = paymentType === 'individual_download'
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -42,8 +46,8 @@ function PaymentSuccessContent() {
 
         setPaymentDetails(data)
         
-        // Update session to reflect new plan
-        if (session) {
+        // Update session to reflect new plan (only for plan payments)
+        if (session && !isIndividualPayment) {
           await update()
         }
 
@@ -56,7 +60,7 @@ function PaymentSuccessContent() {
     }
 
     verifyPayment()
-  }, [sessionId, session, update])
+  }, [sessionId, session, update, isIndividualPayment])
 
   if (isLoading) {
     return (
@@ -106,7 +110,10 @@ function PaymentSuccessContent() {
           />
           <h1 className="text-3xl font-bold text-gray-900">¡Pago Exitoso!</h1>
           <p className="text-gray-600 mt-2">
-            Tu plan ha sido activado correctamente
+            {isIndividualPayment 
+              ? `Tu descarga en ${downloadLanguage === 'english' ? 'inglés' : 'español'} está lista`
+              : "Tu plan ha sido activado correctamente"
+            }
           </p>
         </div>
 
@@ -119,7 +126,10 @@ function PaymentSuccessContent() {
               </div>
             </div>
             <CardTitle className="text-2xl text-green-600">
-              ¡Bienvenido a Jobealo {paymentDetails?.planType || 'Pro'}!
+              {isIndividualPayment 
+                ? '¡Descarga Confirmada!'
+                : `¡Bienvenido a Jobealo ${paymentDetails?.planType || 'Pro'}!`
+              }
             </CardTitle>
             <CardDescription className="text-lg">
               Tu pago ha sido procesado exitosamente
@@ -132,9 +142,14 @@ function PaymentSuccessContent() {
                 <h3 className="font-semibold mb-3">Detalles del pago:</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-gray-600">Plan:</span>
+                    <span className="text-gray-600">
+                      {isIndividualPayment ? 'Descarga:' : 'Plan:'}
+                    </span>
                     <span className="ml-2 font-medium">
-                      {paymentDetails.planType === 'PRO' ? 'Jobealo Pro' : 'Jobealo Lifetime'}
+                      {isIndividualPayment 
+                        ? `CV ${downloadLanguage === 'english' ? 'en inglés' : 'en español'}`
+                        : paymentDetails.planType === 'PRO' ? 'Jobealo Pro' : 'Jobealo Lifetime'
+                      }
                     </span>
                   </div>
                   <div>
@@ -157,58 +172,104 @@ function PaymentSuccessContent() {
               </div>
             )}
 
-            {/* Plan Benefits */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="font-semibold mb-3 flex items-center">
-                <Crown className="w-5 h-5 mr-2 text-blue-600" />
-                Lo que incluye tu plan:
-              </h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                  Descargas ilimitadas en español
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                  Mejoras con IA ilimitadas
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                  Traducción ilimitada al inglés
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                  Descargas al inglés ilimitadas
-                </li>
-                {paymentDetails?.planType === 'LIFETIME' && (
-                  <>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                      Creación de correo para aplicar a vacante ilimitada
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                      Carta de presentación para vacantes ilimitada
-                    </li>
-                  </>
-                )}
-              </ul>
-            </div>
+            {/* Individual Payment Benefits */}
+            {isIndividualPayment ? (
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="font-semibold mb-3 flex items-center">
+                  <Download className="w-5 h-5 mr-2 text-blue-600" />
+                  Tu descarga está lista:
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    CV optimizado para ATS
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Formato profesional en PDF
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    {downloadLanguage === 'english' ? 'Optimizado para el mercado internacional' : 'Optimizado para el mercado español'}
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              /* Plan Benefits */
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="font-semibold mb-3 flex items-center">
+                  <Crown className="w-5 h-5 mr-2 text-blue-600" />
+                  Lo que incluye tu plan:
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Descargas ilimitadas en español
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Mejoras con IA ilimitadas
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Traducción ilimitada al inglés
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Descargas al inglés ilimitadas
+                  </li>
+                  {paymentDetails?.planType === 'LIFETIME' && (
+                    <>
+                      <li className="flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                        Creación de correo para aplicar a vacante ilimitada
+                      </li>
+                      <li className="flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                        Carta de presentación para vacantes ilimitada
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            )}
 
             {/* Call to Action */}
             <div className="space-y-4">
-              <Button asChild className="w-full" size="lg">
-                <Link href="/">
-                  <Download className="w-5 h-5 mr-2" />
-                  Crear mi CV ahora
-                </Link>
-              </Button>
+              {isIndividualPayment ? (
+                <>
+                  <Button asChild className="w-full" size="lg">
+                    <Link href="/">
+                      <Download className="w-5 h-5 mr-2" />
+                      Ir a descargar mi CV
+                    </Link>
+                  </Button>
+                  <div className="text-center text-sm text-gray-600">
+                    <p>
+                      ¿Necesitas más descargas? Considera el{' '}
+                      <Link href="/checkout?plan=LIFETIME" className="text-blue-600 hover:text-blue-500">
+                        plan Lifetime por $59.99
+                      </Link>
+                      {' '}con descargas ilimitadas.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Button asChild className="w-full" size="lg">
+                    <Link href="/">
+                      <Download className="w-5 h-5 mr-2" />
+                      Crear mi CV ahora
+                    </Link>
+                  </Button>
 
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/settings">
-                  Ver mi cuenta
-                </Link>
-              </Button>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/settings">
+                      Ver mi cuenta
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Support */}

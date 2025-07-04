@@ -6,13 +6,18 @@ import PaymentForm from './payment-form'
 
 interface PaymentModalProps {
   isOpen: boolean
-  planType: PlanType | null
+  planType?: PlanType | null
   onClose: () => void
   onSuccess: () => void
+  individualPayment?: {
+    amount: number
+    language: string
+    description: string
+  }
 }
 
-export default function PaymentModal({ isOpen, planType, onClose, onSuccess }: PaymentModalProps) {
-  if (!isOpen || !planType) {
+export default function PaymentModal({ isOpen, planType, onClose, onSuccess, individualPayment }: PaymentModalProps) {
+  if (!isOpen || (!planType && !individualPayment)) {
     return null
   }
 
@@ -32,7 +37,8 @@ export default function PaymentModal({ isOpen, planType, onClose, onSuccess }: P
       {/* Modal Content */}
       <div className="relative z-10 w-full max-w-md mx-4">
         <PaymentForm
-          planType={planType}
+          planType={planType || undefined}
+          individualPayment={individualPayment}
           onSuccess={handleSuccess}
           onCancel={onClose}
         />
