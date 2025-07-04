@@ -172,22 +172,25 @@ export function CVSections({
 
   const handleImproveResponsibility = async (expIndex: number, respIndex: number) => {
     try {
-      const responsibility = cvData.experience[expIndex].responsibilities[respIndex]
+      const responsibility = cvData.experience.items[expIndex].responsibilities[respIndex]
       if (!responsibility.trim()) {
         showError('Escribe una responsabilidad antes de mejorarla con IA')
         return
       }
       
       const context = {
-        position: cvData.experience[expIndex].position,
-        company: cvData.experience[expIndex].company
+        position: cvData.experience.items[expIndex].position,
+        company: cvData.experience.items[expIndex].company
       }
       
       const improved = await improve('responsibility', responsibility, context, `resp-${expIndex}-${respIndex}`)
       
-      const newExp = [...cvData.experience]
+      const newExp = [...cvData.experience.items]
       newExp[expIndex].responsibilities[respIndex] = improved[0] || responsibility
-      updateCVData("experience", newExp)
+      updateCVData("experience", {
+        ...cvData.experience,
+        items: newExp
+      })
       showSuccess('¡Responsabilidad mejorada con IA!')
     } catch {
       showError('Error al mejorar responsabilidad con IA')
@@ -196,22 +199,25 @@ export function CVSections({
 
   const handleImproveAllResponsibilities = async (expIndex: number) => {
     try {
-      const responsibilities = cvData.experience[expIndex].responsibilities.filter(r => r.trim())
+      const responsibilities = cvData.experience.items[expIndex].responsibilities.filter(r => r.trim())
       if (responsibilities.length === 0) {
         showError('Agrega al menos una responsabilidad antes de mejorarlas con IA')
         return
       }
       
       const context = {
-        position: cvData.experience[expIndex].position,
-        company: cvData.experience[expIndex].company
+        position: cvData.experience.items[expIndex].position,
+        company: cvData.experience.items[expIndex].company
       }
       
       const improved = await improve('all-responsibilities', responsibilities, context, `all-resp-${expIndex}`)
       
-      const newExp = [...cvData.experience]
+      const newExp = [...cvData.experience.items]
       newExp[expIndex].responsibilities = improved
-      updateCVData("experience", newExp)
+      updateCVData("experience", {
+        ...cvData.experience,
+        items: newExp
+      })
       showSuccess('¡Todas las responsabilidades mejoradas con IA!')
     } catch {
       showError('Error al mejorar responsabilidades con IA')
@@ -317,8 +323,8 @@ export function CVSections({
       }
       
       const context = {
-        position: cvData.experience[expIndex].position,
-        company: cvData.experience[expIndex].company
+        position: cvData.experience.items[expIndex].position,
+        company: cvData.experience.items[expIndex].company
       }
       
       const suggestions = await improve('experience-suggestions', input, context, `exp-suggestions-${expIndex}`)
@@ -334,11 +340,14 @@ export function CVSections({
   }
 
   const addSuggestedResponsibility = (expIndex: number, responsibility: string) => {
-    const currentResponsibilities = cvData.experience[expIndex].responsibilities
+    const currentResponsibilities = cvData.experience.items[expIndex].responsibilities
     if (currentResponsibilities.length < 8) {
-      const newExp = [...cvData.experience]
+      const newExp = [...cvData.experience.items]
       newExp[expIndex].responsibilities = [...currentResponsibilities, responsibility]
-      updateCVData("experience", newExp)
+      updateCVData("experience", {
+        ...cvData.experience,
+        items: newExp
+      })
       
       // Marcar como agregado para evitar duplicados
       setAddedExperienceSuggestions(prev => ({
@@ -1097,109 +1106,149 @@ export function CVSections({
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Experiencia Profesional</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                Experiencia Profesional
+                <Switch
+                  checked={cvData.experience.enabled}
+                  onCheckedChange={(checked) => {
+                    updateCVData("experience", {
+                      ...cvData.experience,
+                      enabled: checked,
+                    })
+                  }}
+                />
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                {cvData.experience.enabled 
+                  ? "La experiencia profesional está habilitada en tu CV"
+                  : "Habilita esta sección si tienes experiencia laboral relevante"
+                }
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {cvData.experience.map((exp, index) => (
-                <Card key={index} className="border-l-4 border-l-[#0052CC]">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+            
+            {cvData.experience.enabled && (
+              <CardContent className="space-y-4">
+                {cvData.experience.items.map((exp, index) => (
+                  <Card key={index} className="border-l-4 border-l-[#0052CC]">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          placeholder="Cargo"
+                          value={exp.position}
+                          onChange={(e) => {
+                            const newExp = [...cvData.experience.items]
+                            newExp[index].position = e.target.value
+                            updateCVData("experience", {
+                              ...cvData.experience,
+                              items: newExp
+                            })
+                          }}
+                        />
+                        <Input
+                          placeholder="Empresa"
+                          value={exp.company}
+                          onChange={(e) => {
+                            const newExp = [...cvData.experience.items]
+                            newExp[index].company = e.target.value
+                            updateCVData("experience", {
+                              ...cvData.experience,
+                              items: newExp
+                            })
+                          }}
+                        />
+                      </div>
                       <Input
-                        placeholder="Cargo"
-                        value={exp.position}
+                        placeholder="Período (Ej: Ene 2020 - Presente)"
+                        value={exp.period}
                         onChange={(e) => {
-                          const newExp = [...cvData.experience]
-                          newExp[index].position = e.target.value
-                          updateCVData("experience", newExp)
+                          const newExp = [...cvData.experience.items]
+                          newExp[index].period = e.target.value
+                          updateCVData("experience", {
+                            ...cvData.experience,
+                            items: newExp
+                          })
                         }}
                       />
-                      <Input
-                        placeholder="Empresa"
-                        value={exp.company}
-                        onChange={(e) => {
-                          const newExp = [...cvData.experience]
-                          newExp[index].company = e.target.value
-                          updateCVData("experience", newExp)
-                        }}
-                      />
-                    </div>
-                    <Input
-                      placeholder="Período (Ej: Ene 2020 - Presente)"
-                      value={exp.period}
-                      onChange={(e) => {
-                        const newExp = [...cvData.experience]
-                        newExp[index].period = e.target.value
-                        updateCVData("experience", newExp)
-                      }}
-                    />
-                    <div className="space-y-2">
-                      <Label>Responsabilidades (máx. 8)</Label>
-                      {exp.responsibilities.map((resp, respIndex) => (
-                        <div key={respIndex} className="space-y-2">
-                          <div className="flex gap-2">
-                            <Input
-                              value={resp}
-                              onChange={(e) => {
-                                const newExp = [...cvData.experience]
-                                newExp[index].responsibilities[respIndex] = e.target.value
-                                updateCVData("experience", newExp)
-                              }}
-                              placeholder="Describe una responsabilidad específica..."
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const newExp = [...cvData.experience]
-                                newExp[index].responsibilities = newExp[index].responsibilities.filter(
-                                  (_, i) => i !== respIndex,
-                                )
-                                updateCVData("experience", newExp)
-                              }}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          {resp.trim() && (
-                            <div className="flex justify-end">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="flex items-center gap-1 bg-transparent text-xs"
-                                onClick={() => handleImproveResponsibility(index, respIndex)}
-                                disabled={isImproving(`resp-${index}-${respIndex}`)}
+                      <div className="space-y-2">
+                        <Label>Responsabilidades (máx. 8)</Label>
+                        {exp.responsibilities.map((resp, respIndex) => (
+                          <div key={respIndex} className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                value={resp}
+                                onChange={(e) => {
+                                  const newExp = [...cvData.experience.items]
+                                  newExp[index].responsibilities[respIndex] = e.target.value
+                                  updateCVData("experience", {
+                                    ...cvData.experience,
+                                    items: newExp
+                                  })
+                                }}
+                                placeholder="Describe una responsabilidad específica..."
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newExp = [...cvData.experience.items]
+                                  newExp[index].responsibilities = newExp[index].responsibilities.filter(
+                                    (_, i) => i !== respIndex,
+                                  )
+                                  updateCVData("experience", {
+                                    ...cvData.experience,
+                                    items: newExp
+                                  })
+                                }}
                               >
-                                {isImproving(`resp-${index}-${respIndex}`) ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Sparkles className="w-3 h-3" />
-                                )}
-                                {isImproving(`resp-${index}-${respIndex}`) ? 'Mejorando...' : 'Mejorar con IA'}
+                                <X className="w-4 h-4" />
                               </Button>
                             </div>
-                          )}
-                        </div>
-                      ))}
-                      {exp.responsibilities.length < 8 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newExp = [...cvData.experience]
-                            newExp[index].responsibilities.push("")
-                            updateCVData("experience", newExp)
-                          }}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Agregar responsabilidad
-                        </Button>
-                      )}
-                      {exp.responsibilities.some(resp => resp.trim()) && (
-                        <div className="flex justify-end mt-2">
+                            {resp.trim() && (
+                              <div className="flex justify-end">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="flex items-center gap-1 bg-transparent text-xs"
+                                  onClick={() => handleImproveResponsibility(index, respIndex)}
+                                  disabled={isImproving(`resp-${index}-${respIndex}`)}
+                                >
+                                  {isImproving(`resp-${index}-${respIndex}`) ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="w-3 h-3" />
+                                  )}
+                                  {isImproving(`resp-${index}-${respIndex}`) ? 'Mejorando...' : 'Mejorar con IA'}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {exp.responsibilities.length < 8 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newExp = [...cvData.experience.items]
+                              newExp[index].responsibilities.push("")
+                              updateCVData("experience", {
+                                ...cvData.experience,
+                                items: newExp
+                              })
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Agregar responsabilidad
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Botón para mejorar todas las responsabilidades */}
+                      {exp.responsibilities.filter(r => r.trim()).length > 0 && (
+                        <div className="flex justify-end border-t pt-3">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="flex items-center gap-2 bg-transparent"
+                            className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
                             onClick={() => handleImproveAllResponsibilities(index)}
                             disabled={isImproving(`all-resp-${index}`)}
                           >
@@ -1208,115 +1257,123 @@ export function CVSections({
                             ) : (
                               <Sparkles className="w-4 h-4" />
                             )}
-                            {isImproving(`all-resp-${index}`) ? 'Mejorando...' : 'Mejorar todas las responsabilidades con IA'}
+                            {isImproving(`all-resp-${index}`) ? 'Mejorando todas...' : 'Mejorar todas con IA'}
                           </Button>
                         </div>
                       )}
-                    </div>
 
-                    {/* Generador de responsabilidades orientadas a logros */}
-                    <div className="border-t pt-4">
-                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Lightbulb className="w-5 h-5 text-purple-600" />
-                          <h3 className="font-medium text-purple-800">Generar Responsabilidades con IA</h3>
-                        </div>
-                        <p className="text-sm text-purple-700 mb-3">
-                          Describe qué hiciste en este trabajo. Menciona logros, métricas, equipos que lideraste, presupuestos, metas superadas:
-                        </p>
-                        
-                        <div className="space-y-3">
-                          <Textarea
-                            value={experienceInputs[index] || ''}
-                            onChange={(e) => updateExperienceInput(index, e.target.value)}
-                            placeholder="Ej: Lideré un equipo de 8 personas, aumenté las ventas en 30%, manejé presupuesto de $200K, reduje costos en 15%, implementé nuevo sistema que ahorró 20 horas semanales, superé meta trimestral por 125%..."
-                            className="min-h-20 bg-white border-purple-200 focus:border-purple-400"
-                            maxLength={500}
-                          />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-purple-600">{(experienceInputs[index] || '').length}/500 caracteres</span>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
-                              onClick={() => handleGenerateExperienceSuggestions(index)}
-                              disabled={isImproving(`exp-suggestions-${index}`) || !(experienceInputs[index]?.trim())}
-                            >
-                              {isImproving(`exp-suggestions-${index}`) ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Sparkles className="w-4 h-4" />
-                              )}
-                              {isImproving(`exp-suggestions-${index}`) ? 'Generando...' : 'Generar logros (máx. 5)'}
-                            </Button>
+                      {/* Generador de sugerencias de experiencia */}
+                      <div className="border-t pt-4">
+                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Lightbulb className="w-5 h-5 text-purple-600" />
+                            <h3 className="font-medium text-purple-800">Generar Responsabilidades con IA</h3>
                           </div>
-                        </div>
-
-                        {/* Mostrar sugerencias */}
-                        {showExperienceSuggestions[index] && experienceSuggestions[index]?.length > 0 && (
-                          <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200">
-                            <p className="text-sm font-medium text-purple-800 mb-2">✨ Responsabilidades orientadas a logros ({experienceSuggestions[index].length} generadas):</p>
-                            <div className="space-y-2">
-                              {experienceSuggestions[index].map((suggestion, suggIndex) => {
-                                const isAdded = addedExperienceSuggestions[index]?.has(suggestion) || false
-                                const isMaxReached = exp.responsibilities.length >= 8
-                                
-                                return (
-                                  <div key={suggIndex} className="flex items-start justify-between p-3 bg-purple-50 rounded border border-purple-100">
-                                    <span className={`text-sm font-medium flex-1 mr-3 ${isAdded ? 'text-gray-500 line-through' : 'text-purple-900'}`}>
-                                      {suggestion}
-                                    </span>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => addSuggestedResponsibility(index, suggestion)}
-                                      disabled={isAdded || isMaxReached}
-                                      className={`text-xs flex-shrink-0 ${
-                                        isAdded 
-                                          ? 'bg-green-100 text-green-700 border-green-300 cursor-not-allowed' 
-                                          : isMaxReached
-                                          ? 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                                          : 'bg-purple-600 text-white hover:bg-purple-700 border-purple-600'
-                                      }`}
-                                    >
-                                      {isAdded ? '✓ Agregada' : isMaxReached ? 'Máximo alcanzado' : 'Agregar'}
-                                    </Button>
-                                  </div>
-                                )
-                              })}
+                          <p className="text-sm text-purple-700 mb-3">
+                            Describe qué hiciste en este trabajo. Menciona logros, métricas, equipos que lideraste, presupuestos, metas superadas:
+                          </p>
+                          
+                          <div className="space-y-3">
+                            <Textarea
+                              value={experienceInputs[index] || ''}
+                              onChange={(e) => updateExperienceInput(index, e.target.value)}
+                              placeholder="Ej: Lideré un equipo de 8 personas, aumenté las ventas en 30%, manejé presupuesto de $200K, reduje costos en 15%, implementé nuevo sistema que ahorró 20 horas semanales, superé meta trimestral por 125%..."
+                              className="min-h-20 bg-white border-purple-200 focus:border-purple-400"
+                              maxLength={500}
+                            />
+                            
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-purple-600">{(experienceInputs[index] || '').length}/500 caracteres</span>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
+                                onClick={() => handleGenerateExperienceSuggestions(index)}
+                                disabled={isImproving(`exp-suggestions-${index}`) || !(experienceInputs[index]?.trim())}
+                              >
+                                {isImproving(`exp-suggestions-${index}`) ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-4 h-4" />
+                                )}
+                                {isImproving(`exp-suggestions-${index}`) ? 'Generando...' : 'Generar logros (máx. 5)'}
+                              </Button>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
 
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        const newExp = cvData.experience.filter((_, i) => i !== index)
-                        updateCVData("experience", newExp)
-                      }}
-                    >
-                      Eliminar experiencia
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  updateCVData("experience", [
-                    ...cvData.experience,
-                    { position: "", company: "", period: "", responsibilities: [""] },
-                  ])
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar experiencia
-              </Button>
-            </CardContent>
+                          {/* Mostrar sugerencias */}
+                          {showExperienceSuggestions[index] && experienceSuggestions[index]?.length > 0 && (
+                            <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200">
+                              <p className="text-sm font-medium text-purple-800 mb-2">✨ Responsabilidades orientadas a logros ({experienceSuggestions[index].length} generadas):</p>
+                              <div className="space-y-2">
+                                {experienceSuggestions[index].map((suggestion, suggIndex) => {
+                                  const isAdded = addedExperienceSuggestions[index]?.has(suggestion) || false
+                                  const isMaxReached = exp.responsibilities.length >= 8
+                                  
+                                  return (
+                                    <div 
+                                      key={suggIndex} 
+                                      className={`p-2 rounded border text-sm ${
+                                        isAdded ? 'bg-gray-100 border-gray-300' : 'bg-purple-50 border-purple-200 cursor-pointer hover:bg-purple-100'
+                                      }`}
+                                      onClick={() => {
+                                        if (!isAdded && !isMaxReached) {
+                                          addSuggestedResponsibility(index, suggestion)
+                                        }
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <span className={`flex-1 ${isAdded ? 'text-gray-500' : 'text-purple-800'}`}>
+                                          {suggestion}
+                                        </span>
+                                        <span className={`text-xs ml-2 ${
+                                          isAdded ? 'text-gray-400' : isMaxReached ? 'text-red-500' : 'text-purple-600'
+                                        }`}>
+                                          {isAdded ? '✓ Agregado' : isMaxReached ? 'Máx. alcanzado' : 'Clic para agregar'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          const newExp = cvData.experience.items.filter((_, i) => i !== index)
+                          updateCVData("experience", {
+                            ...cvData.experience,
+                            items: newExp
+                          })
+                        }}
+                      >
+                        Eliminar experiencia
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    updateCVData("experience", {
+                      ...cvData.experience,
+                      items: [
+                        ...cvData.experience.items,
+                        { position: "", company: "", period: "", responsibilities: [""] },
+                      ]
+                    })
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar experiencia
+                </Button>
+              </CardContent>
+            )}
           </Card>
         )
 

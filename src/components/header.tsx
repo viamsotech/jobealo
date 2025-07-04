@@ -2,14 +2,19 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { AuthButton } from "@/components/auth/auth-button"
 import Image from "next/image"
-import { Menu, X } from "lucide-react"
+import { Menu, X, FileText } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 interface HeaderProps {
   onStartBuilder: () => void
 }
 
 export function Header({ onStartBuilder }: HeaderProps) {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const toggleMenu = () => {
@@ -18,6 +23,11 @@ export function Header({ onStartBuilder }: HeaderProps) {
 
   const closeMenu = () => {
     setIsMenuOpen(false)
+  }
+
+  const handleMyCVs = () => {
+    router.push('/cvs')
+    closeMenu()
   }
 
   return (
@@ -35,6 +45,15 @@ export function Header({ onStartBuilder }: HeaderProps) {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
+          {session?.user && (
+            <button
+              onClick={handleMyCVs}
+              className="text-sm font-medium text-gray-700 hover:text-[#0052CC] transition-colors flex items-center space-x-1"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Mis CVs</span>
+            </button>
+          )}
           <button
             onClick={onStartBuilder}
             className="text-sm font-medium text-gray-700 hover:text-[#0052CC] transition-colors"
@@ -47,15 +66,15 @@ export function Header({ onStartBuilder }: HeaderProps) {
           <a href="#contact" className="text-sm font-medium text-gray-700 hover:text-[#0052CC] transition-colors">
             Contacto
           </a>
-          <a href="#login" className="text-sm font-medium text-gray-700 hover:text-[#0052CC] transition-colors">
-            Iniciar Sesión
-          </a>
         </nav>
 
-        {/* Desktop CTA Button */}
-        <Button onClick={onStartBuilder} className="hidden md:flex bg-[#0052CC] hover:bg-[#0052CC]/90 text-white">
-          Crear CV Gratis
-        </Button>
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center space-x-4">
+          <AuthButton />
+          <Button onClick={onStartBuilder} className="bg-[#0052CC] hover:bg-[#0052CC]/90 text-white">
+            Crear CV Gratis
+          </Button>
+        </div>
 
         {/* Mobile Menu Button */}
         <button
@@ -75,36 +94,44 @@ export function Header({ onStartBuilder }: HeaderProps) {
       {isMenuOpen && (
         <div className="md:hidden bg-white border-b shadow-lg">
           <nav className="container mx-auto max-w-6xl px-4 py-4 space-y-4">
+            {session?.user && (
+              <button
+                onClick={handleMyCVs}
+                className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2 flex items-center space-x-2"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Mis CVs</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 onStartBuilder()
                 closeMenu()
               }}
-              className="block w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2"
+              className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2"
             >
               Construir CV
             </button>
             <a
               href="#pricing"
               onClick={closeMenu}
-              className="block text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2"
+              className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2 inline-block"
             >
               Precios
             </a>
             <a
               href="#contact"
               onClick={closeMenu}
-              className="block text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2"
+              className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2 inline-block"
             >
               Contacto
             </a>
-            <a
-              href="#login"
-              onClick={closeMenu}
-              className="block text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2"
-            >
-              Iniciar Sesión
-            </a>
+            
+            {/* Mobile Auth Button */}
+            <div className="py-2">
+              <AuthButton />
+            </div>
+            
             <div className="pt-4 border-t">
               <Button
                 onClick={() => {

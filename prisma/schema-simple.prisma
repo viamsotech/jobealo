@@ -1,0 +1,18 @@
+// Simple test schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Simple test table
+model TestConnection {
+  id        String   @id @default(cuid())
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("test_connection")
+} 

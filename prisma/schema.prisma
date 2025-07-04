@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+// Users table (registered users only)
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String?
+  avatarUrl           String?   @map("avatar_url")
+  provider            String    // 'google', 'github', 'magic-link'
+  providerId          String    @map("provider_id")
+  plan                String    @default("FREEMIUM") // 'FREEMIUM', 'LIFETIME'
+  lifetimePurchasedAt DateTime? @map("lifetime_purchased_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  fingerprints       UserFingerprint[]
+  downloads          Download[]
+  purchases          IndividualPurchase[]
+  sessions           UserSession[]
+  savedCVs           SavedCV[]
+
+  @@map("users")
+}
+
+// User fingerprints (anonymous + registered users)
+model UserFingerprint {
+  id               String   @id @default(cuid())
+  fingerprintHash  String   @unique @map("fingerprint_hash")
+  userId           String?  @map("user_id")
+  ipAddress        String?  @map("ip_address")
+  userAgent        String?  @map("user_agent")
+  screenResolution String?  @map("screen_resolution")
+  timezone         String?
+  language         String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  downloads Download[]
+  purchases IndividualPurchase[]
+  sessions  UserSession[]
+
+  @@map("user_fingerprints")
+}
+
+// Downloads table (all downloads tracking)
+model Download {
+  id                     String   @id @default(cuid())
+  fingerprintId          String   @map("fingerprint_id")
+  userId                 String?  @map("user_id")
+  downloadType           String   @map("download_type") // 'FREE_SPANISH', 'PAID_SPANISH', 'PAID_ENGLISH', 'LIFETIME_SPANISH', 'LIFETIME_ENGLISH'
+  fileName               String?  @map("file_name")
+  ipAddress              String?  @map("ip_address")
+  amountPaid             Decimal  @default(0.00) @map("amount_paid") @db.Decimal(4, 2)
+  stripePaymentIntentId  String?  @map("stripe_payment_intent_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  // Relations
+  fingerprint UserFingerprint @relation(fields: [fingerprintId], references: [id], onDelete: Cascade)
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("downloads")
+}
+
+// Individual purchases (pay-per-download + lifetime)
+model IndividualPurchase {
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  fingerprintId         String?  @map("fingerprint_id")
+  purchaseType          String   @map("purchase_type") // 'SPANISH_DOWNLOAD', 'ENGLISH_DOWNLOAD', 'LIFETIME_PLAN'
+  amount                Decimal  @db.Decimal(5, 2)
+  stripePaymentIntentId String   @unique @map("stripe_payment_intent_id")
+  status                String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint UserFingerprint? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
+
+  @@map("individual_purchases")
+}
+
+// Download limits configuration
+model DownloadLimit {
+  id                   String   @id @default(cuid())
+  userType             String   @unique @map("user_type") // 'ANONYMOUS', 'REGISTERED_FREEMIUM', 'LIFETIME'
+  freeSpanishLimit     Int      @map("free_spanish_limit")
+  spanishPrice         Decimal  @map("spanish_price") @db.Decimal(4, 2)
+  englishPrice         Decimal  @map("english_price") @db.Decimal(4, 2)
+  requiresRegistration Boolean  @default(false) @map("requires_registration")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("download_limits")
+}
+
+// User sessions (for authentication state)
+model UserSession {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  fingerprintId String?  @map("fingerprint_id")
+  sessionToken  String   @unique @map("session_token")
+  expiresAt     DateTime @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint UserFingerprint? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
+
+  @@map("user_sessions")
+}
+
+// Saved CVs table
+model SavedCV {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  title       String   // User-defined title for the CV
+  cvData      Json     @map("cv_data") // Complete CV data as JSON
+  isTemplate  Boolean  @default(false) @map("is_template") // If it's a template for reuse
+  isCompleted Boolean  @default(false) @map("is_completed") // If user considers it complete
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_cvs")
+}
