@@ -375,10 +375,9 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     borderBottomColor: data.headerColor,
   }
 
-  // Create downloadPDF function with complete logic
+  // Create downloadPDF function with complete logic (NO action checking - only PDF generation)
   const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english') => {
     try {
-      const actionType = language === 'english' ? 'DOWNLOAD_ENGLISH' : 'DOWNLOAD_SPANISH'
       const recordFunction = language === 'english' ? recordDownloadEnglish : recordDownloadSpanish
       
       // Verificar que estamos en el cliente

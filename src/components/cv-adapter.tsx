@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -34,6 +34,12 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
   const [isAdapting, setIsAdapting] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'select' | 'adapt' | 'preview'>('select')
+  const [actionCheckResult, setActionCheckResult] = useState<{
+    allowed: boolean
+    requiresPayment: boolean
+    requiresRegistration: boolean
+    price: number | null
+  } | null>(null)
 
   const {
     canAdaptCV,
@@ -43,31 +49,39 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
     remainingFreeActions
   } = useActions()
 
+  // Check action availability when component mounts
+  useEffect(() => {
+    const checkActionAvailability = async () => {
+      try {
+        const check = await canAdaptCV()
+        setActionCheckResult(check)
+      } catch (error) {
+        console.error('Error checking action availability:', error)
+      }
+    }
+
+    checkActionAvailability()
+  }, [canAdaptCV])
+
+  const canUseFeature = actionCheckResult?.allowed || false
+  const requiresPayment = actionCheckResult?.requiresPayment || false
+  const requiresRegistration = actionCheckResult?.requiresRegistration || false
+  const actionPrice = actionCheckResult?.price || 1.99
+
   const selectedCV = completedCVs.find(cv => cv.id === selectedCVId)
 
   const handleAdaptCV = async () => {
     if (!selectedCV || !jobDescription.trim()) return
 
+    // Don't proceed if action is not allowed
+    if (!canUseFeature) {
+      return
+    }
+
+    setIsAdapting(true)
+    setError('')
+
     try {
-      // Check if action is allowed first
-      const actionCheck = await canAdaptCV()
-      
-      if (!actionCheck.allowed) {
-        if (actionCheck.requiresPayment) {
-          setError(`🔒 Necesitas pagar $${actionCheck.price} para adaptar CVs con IA.`)
-          return
-        } else if (actionCheck.requiresRegistration) {
-          setError('🔒 Necesitas registrarte para usar las funciones de IA.')
-          return
-        } else {
-          setError('🔒 Has agotado tus acciones gratuitas. Necesitas un plan Pro o Lifetime para adaptar CVs.')
-          return
-        }
-      }
-
-      setIsAdapting(true)
-      setError('')
-
       const response = await fetch('/api/ai/adapt-cv', {
         method: 'POST',
         headers: {
@@ -380,6 +394,62 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
               </div>
             )}
 
+            {/* Access Status Message */}
+            {!canUseFeature && (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <Target className="w-5 h-5 text-orange-600 mt-0.5" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-orange-800 mb-1">
+                      {requiresPayment ? 'Pago requerido' : requiresRegistration ? 'Registro requerido' : 'Límite alcanzado'}
+                    </h4>
+                    <div className="text-sm text-orange-700">
+                      {requiresPayment && (
+                        <p>Necesitas pagar ${actionPrice} para usar la función de adaptar CV con IA.</p>
+                      )}
+                      {requiresRegistration && (
+                        <p>Debes registrarte para acceder a las funciones de IA.</p>
+                      )}
+                      {!requiresPayment && !requiresRegistration && (
+                        <p>Has agotado tus acciones gratuitas. Upgrade a Pro o Lifetime para acceso ilimitado.</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      {requiresRegistration && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => window.location.href = '/auth/signup'}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Registrarse gratis
+                        </Button>
+                      )}
+                      {requiresPayment && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          Upgrade a Lifetime
+                        </Button>
+                      )}
+                      {!requiresPayment && !requiresRegistration && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          Ver planes
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button
@@ -390,7 +460,7 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
               </Button>
               <Button
                 onClick={handleAdaptCV}
-                disabled={!selectedCVId || !jobDescription.trim() || isAdapting}
+                disabled={!selectedCVId || !jobDescription.trim() || isAdapting || !canUseFeature}
                 className="flex items-center gap-2"
               >
                 {isAdapting ? (
@@ -401,7 +471,7 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Adaptar CV
+                    {!canUseFeature ? 'Función no disponible' : 'Adaptar CV'}
                   </>
                 )}
               </Button>

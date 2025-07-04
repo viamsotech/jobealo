@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -63,6 +63,12 @@ export function ApplicationGenerator({
   const [editedContent, setEditedContent] = useState('')
   const [saveTitle, setSaveTitle] = useState('')
   const [showSaveOptions, setShowSaveOptions] = useState(false)
+  const [actionCheckResult, setActionCheckResult] = useState<{
+    allowed: boolean
+    requiresPayment: boolean
+    requiresRegistration: boolean
+    price: number | null
+  } | null>(null)
 
   const {
     generateEmail,
@@ -92,31 +98,40 @@ export function ApplicationGenerator({
   const currentCount = isEmail ? emailCount : coverLetterCount
   const maxCount = 3
 
+  // Check action on component mount
+  useEffect(() => {
+    const checkActionAvailability = async () => {
+      try {
+        const check = isEmail ? await canGenerateEmail() : await canGenerateCoverLetter()
+        setActionCheckResult(check)
+      } catch (error) {
+        console.error('Error checking action availability:', error)
+      }
+    }
+
+    if (isOpen) {
+      checkActionAvailability()
+    }
+  }, [isOpen, isEmail, canGenerateEmail, canGenerateCoverLetter])
+
+  const canUseFeature = actionCheckResult?.allowed || false
+  const requiresPayment = actionCheckResult?.requiresPayment || false
+  const requiresRegistration = actionCheckResult?.requiresRegistration || false
+  const actionPrice = actionCheckResult?.price || 1.99
+
   if (!isOpen) return null
 
   const handleGenerate = async () => {
     if (!jobDescription.trim()) return
 
+    // Don't proceed if action is not allowed
+    if (!canUseFeature) {
+      return
+    }
+
+    setStep('generate')
+
     try {
-      // Check if action is allowed first
-      const actionType = isEmail ? 'GENERATE_EMAIL' : 'GENERATE_COVER_LETTER'
-      const actionCheck = isEmail ? await canGenerateEmail() : await canGenerateCoverLetter()
-      
-      if (!actionCheck.allowed) {
-        if (actionCheck.requiresPayment) {
-          alert(`🔒 Necesitas pagar $${actionCheck.price} para generar ${isEmail ? 'emails' : 'cartas de presentación'}.`)
-          return
-        } else if (actionCheck.requiresRegistration) {
-          alert('🔒 Necesitas registrarte para usar las funciones de IA.')
-          return
-        } else {
-          alert(`🔒 Has agotado tus acciones gratuitas. Necesitas un plan Pro o Lifetime para generar ${isEmail ? 'emails' : 'cartas'}.`)
-          return
-        }
-      }
-
-      setStep('generate')
-
       const params = {
         cvData,
         jobDescription: jobDescription.trim(),
@@ -243,9 +258,31 @@ export function ApplicationGenerator({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-              <p className="text-sm text-gray-600">
-                Guardados: {currentCount}/{maxCount}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-600">
+                  Guardados: {currentCount}/{maxCount}
+                </p>
+                {!canUseFeature && requiresPayment && (
+                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                    Requiere pago: ${actionPrice}
+                  </Badge>
+                )}
+                {!canUseFeature && requiresRegistration && (
+                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                    Requiere registro
+                  </Badge>
+                )}
+                {canUseFeature && hasFullAccess && !['LIFETIME', 'PRO'].includes(userType) && (
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    {remainingFreeActions} acciones restantes
+                  </Badge>
+                )}
+                {canUseFeature && ['LIFETIME', 'PRO'].includes(userType) && (
+                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                    Acceso ilimitado
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <Button
@@ -361,6 +398,62 @@ export function ApplicationGenerator({
                 </div>
               )}
 
+              {/* Access Status Message */}
+              {!canUseFeature && (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-orange-800 mb-1">
+                        {requiresPayment ? 'Pago requerido' : requiresRegistration ? 'Registro requerido' : 'Límite alcanzado'}
+                      </h4>
+                      <div className="text-sm text-orange-700">
+                        {requiresPayment && (
+                          <p>Necesitas pagar ${actionPrice} para usar esta función de IA.</p>
+                        )}
+                        {requiresRegistration && (
+                          <p>Debes registrarte para acceder a las funciones de IA.</p>
+                        )}
+                        {!requiresPayment && !requiresRegistration && (
+                          <p>Has agotado tus acciones gratuitas. Upgrade a Pro o Lifetime para acceso ilimitado.</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        {requiresRegistration && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => window.location.href = '/auth/signup'}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            Registrarse gratis
+                          </Button>
+                        )}
+                        {requiresPayment && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                            className="bg-orange-600 hover:bg-orange-700"
+                          >
+                            Upgrade a Lifetime
+                          </Button>
+                        )}
+                        {!requiresPayment && !requiresRegistration && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                            className="bg-orange-600 hover:bg-orange-700"
+                          >
+                            Ver planes
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex justify-end space-x-3 pt-4 border-t">
                 <Button variant="outline" onClick={handleClose}>
@@ -368,7 +461,7 @@ export function ApplicationGenerator({
                 </Button>
                 <Button
                   onClick={handleGenerate}
-                  disabled={!jobDescription.trim() || isGenerating}
+                  disabled={!jobDescription.trim() || isGenerating || !canUseFeature}
                   className="flex items-center space-x-2"
                 >
                   {isGenerating ? (
@@ -379,6 +472,8 @@ export function ApplicationGenerator({
                   <span>
                     {isGenerating 
                       ? 'Generando...' 
+                      : !canUseFeature
+                      ? `${isEmail ? 'Email' : 'Carta'} no disponible`
                       : `Generar ${isEmail ? 'Email' : 'Carta'}`
                     }
                   </span>
