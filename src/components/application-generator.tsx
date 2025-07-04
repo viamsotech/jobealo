@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { CVData } from '@/components/cv-builder'
 import { useApplications } from '@/hooks/useApplications'
+import { useActions } from '@/hooks/useActions'
 
 interface ApplicationGeneratorProps {
   isOpen: boolean
@@ -73,6 +74,18 @@ export function ApplicationGenerator({
     error
   } = useApplications()
 
+  const {
+    checkAction,
+    recordAction,
+    canGenerateEmail,
+    canGenerateCoverLetter,
+    recordGenerateEmail,
+    recordGenerateCoverLetter,
+    hasFullAccess,
+    userType,
+    remainingFreeActions
+  } = useActions()
+
   const isEmail = type === 'email'
   const title = isEmail ? 'Generar Email de Postulación' : 'Generar Carta de Presentación'
   const Icon = isEmail ? Mail : FileSpreadsheet
@@ -84,16 +97,34 @@ export function ApplicationGenerator({
   const handleGenerate = async () => {
     if (!jobDescription.trim()) return
 
-    setStep('generate')
-
-    const params = {
-      cvData,
-      jobDescription: jobDescription.trim(),
-      formality,
-      personality
-    }
-
     try {
+      // Check if action is allowed first
+      const actionType = isEmail ? 'GENERATE_EMAIL' : 'GENERATE_COVER_LETTER'
+      const actionCheck = isEmail ? await canGenerateEmail() : await canGenerateCoverLetter()
+      
+      if (!actionCheck.allowed) {
+        if (actionCheck.requiresPayment) {
+          alert(`🔒 Necesitas pagar $${actionCheck.price} para generar ${isEmail ? 'emails' : 'cartas de presentación'}.`)
+          return
+        } else if (actionCheck.requiresRegistration) {
+          alert('🔒 Necesitas registrarte para usar las funciones de IA.')
+          return
+        } else {
+          alert(`🔒 Has agotado tus acciones gratuitas. Necesitas un plan Pro o Lifetime para generar ${isEmail ? 'emails' : 'cartas'}.`)
+          return
+        }
+      }
+
+      setStep('generate')
+
+      const params = {
+        cvData,
+        jobDescription: jobDescription.trim(),
+        formality,
+        personality
+      }
+
+      // Call the actual AI function
       let content = null
       if (isEmail) {
         content = await generateEmail(params)
@@ -102,6 +133,23 @@ export function ApplicationGenerator({
       }
 
       if (content) {
+        // Record the action after successful generation
+        if (isEmail) {
+          await recordGenerateEmail({
+            jobDescription: jobDescription.trim(),
+            formality,
+            personality,
+            contentLength: content.length
+          })
+        } else {
+          await recordGenerateCoverLetter({
+            jobDescription: jobDescription.trim(),
+            formality,
+            personality,
+            contentLength: content.length
+          })
+        }
+
         setGeneratedContent(content)
         setEditedContent(content)
         setStep('edit')

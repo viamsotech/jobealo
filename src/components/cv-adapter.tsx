@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { CVData } from '@/components/cv-builder'
 import { X, Sparkles, FileText, Target, Copy, Save, Loader2 } from 'lucide-react'
+import { useActions } from '@/hooks/useActions'
 
 interface CompletedCV {
   id: string
@@ -34,15 +35,39 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
   const [error, setError] = useState('')
   const [step, setStep] = useState<'select' | 'adapt' | 'preview'>('select')
 
+  const {
+    canAdaptCV,
+    recordAdaptCV,
+    hasFullAccess,
+    userType,
+    remainingFreeActions
+  } = useActions()
+
   const selectedCV = completedCVs.find(cv => cv.id === selectedCVId)
 
   const handleAdaptCV = async () => {
     if (!selectedCV || !jobDescription.trim()) return
 
-    setIsAdapting(true)
-    setError('')
-
     try {
+      // Check if action is allowed first
+      const actionCheck = await canAdaptCV()
+      
+      if (!actionCheck.allowed) {
+        if (actionCheck.requiresPayment) {
+          setError(`🔒 Necesitas pagar $${actionCheck.price} para adaptar CVs con IA.`)
+          return
+        } else if (actionCheck.requiresRegistration) {
+          setError('🔒 Necesitas registrarte para usar las funciones de IA.')
+          return
+        } else {
+          setError('🔒 Has agotado tus acciones gratuitas. Necesitas un plan Pro o Lifetime para adaptar CVs.')
+          return
+        }
+      }
+
+      setIsAdapting(true)
+      setError('')
+
       const response = await fetch('/api/ai/adapt-cv', {
         method: 'POST',
         headers: {
@@ -60,6 +85,14 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
       if (!response.ok) {
         throw new Error(data.error || 'Error al adaptar el CV')
       }
+
+      // Record the action after successful adaptation
+      await recordAdaptCV({
+        jobDescription: jobDescription.trim(),
+        adaptationFocus: adaptationFocus.trim(),
+        cvTitle: selectedCV.title,
+        changesDetected: true
+      })
 
       setAdaptedCV(data.adaptedCV)
       setOriginalCV(selectedCV.cvData)
