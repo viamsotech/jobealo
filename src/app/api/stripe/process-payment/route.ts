@@ -45,7 +45,52 @@ export async function POST(request: NextRequest) {
       }
 
       const planType = paymentIntent.metadata?.planType
+      const downloadType = paymentIntent.metadata?.type
       const amount = paymentIntent.amount / 100 // Convert cents to dollars
+
+      if (downloadType === 'individual_download') {
+        // Handle individual download payment
+        const language = paymentIntent.metadata?.language
+        const downloadPrice = paymentIntent.metadata?.downloadPrice
+
+        if (!language) {
+          return NextResponse.json(
+            { error: 'Download language not found in payment metadata' },
+            { status: 400 }
+          )
+        }
+
+        // Record the download in the downloads table
+        try {
+          const { error: downloadError } = await supabase
+            .from('downloads')
+            .insert({
+              user_id: session.user.id,
+              download_type: `PAID_${language.toUpperCase()}`,
+              file_name: `CV_${language}_${new Date().toISOString().split('T')[0]}.pdf`,
+              amount_paid: amount,
+              stripe_payment_intent_id: paymentIntentId,
+              created_at: new Date().toISOString()
+            })
+
+          if (downloadError) {
+            console.error('Error recording download:', downloadError)
+            // Don't fail the request if download recording fails
+          }
+        } catch (dbError) {
+          console.error('Database error recording download:', dbError)
+        }
+
+        console.log(`Successfully processed individual download payment for user ${session.user.id}: ${language} - $${amount}`)
+
+        return NextResponse.json({
+          success: true,
+          type: 'individual_download',
+          language: language,
+          amount: amount,
+          message: 'Download payment processed successfully'
+        })
+      }
 
       if (!planType) {
         return NextResponse.json(

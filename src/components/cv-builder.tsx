@@ -828,7 +828,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
                   size="sm"
                   onClick={handleTranslateToEnglish}
                   disabled={isTranslating || !isFlowComplete}
-                  className={`flex items-center space-x-1 ${
+                  className={`flex items-center space-x-2 ${
                     !isFlowComplete
                       ? 'border-gray-300 text-gray-400 cursor-not-allowed' 
                       : hasFullFeatureAccess || isLifetimeUser || isProUser
@@ -850,30 +850,39 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
                   ) : (
                     <Globe className="w-4 h-4" />
                   )}
-                  <span>{showEnglishPreview ? '🇪🇸 Español' : '🇺🇸 English'}</span>
+                  <span>
+                    {showEnglishPreview ? '🇪🇸 Ver en Español' : '🇺🇸 Traducir a Inglés'}
+                  </span>
                   {hasFullFeatureAccess && !isLifetimeUser && !isProUser && (
-                    <span className="ml-1 px-1 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded">
-                      {remainingFreeDownloads} FREE
-                    </span>
+                    <Badge variant="secondary" className="text-xs h-5">
+                      GRATIS
+                    </Badge>
                   )}
                   {(isLifetimeUser || isProUser) && (
-                    <span className="ml-1 px-1 py-0.5 text-xs font-bold bg-blue-100 text-blue-700 rounded">
-                      UNLIMITED
-                    </span>
+                    <Badge variant="secondary" className="text-xs h-5 bg-blue-100 text-blue-700">
+                      ILIMITADO
+                    </Badge>
                   )}
                 </Button>
                 <Button 
                   onClick={handleDownloadPDF}
                   disabled={isGenerating || !canDownloadPDF}
                   size="sm"
-                  className={`flex items-center space-x-1 ${!canDownloadPDF ? 'bg-gray-300 cursor-not-allowed' : ''}`}
+                  className={`flex items-center space-x-2 ${!canDownloadPDF ? 'bg-gray-300 cursor-not-allowed' : ''}`}
                 >
                   {isGenerating ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Download className="w-4 h-4" />
                   )}
-                  <span>PDF</span>
+                  <span>
+                    {isGenerating 
+                      ? 'Generando...' 
+                      : showEnglishPreview 
+                        ? 'Descargar PDF (EN)' 
+                        : 'Descargar PDF (ES)'
+                    }
+                  </span>
                 </Button>
               </div>
             </div>

@@ -1,10 +1,11 @@
 import type { CVData } from "@/components/cv-builder"
 import { useDownloads } from "@/hooks/useDownloads"
+import { useStripePayment } from "@/hooks/useStripePayment"
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Download, Crown, AlertCircle, CheckCircle, Loader2, User } from "lucide-react"
+import { Download, Crown, AlertCircle, CheckCircle, Loader2, User, X, CreditCard } from "lucide-react"
 import { useState } from "react"
 
 interface CVPreviewProps {
@@ -15,6 +16,11 @@ interface CVPreviewProps {
 
 export function CVPreview({ data, isEnglishVersion = false, isComplete = true }: CVPreviewProps) {
   const [selectedLanguage, setSelectedLanguage] = useState<'spanish' | 'english'>('spanish')
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [pendingDownload, setPendingDownload] = useState<{
+    language: 'spanish' | 'english'
+    price: number
+  } | null>(null)
   
   const {
     downloadCheck,
@@ -34,6 +40,8 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     userPlan,
     hasFullFeatureAccess
   } = useDownloads()
+
+  const stripePayment = useStripePayment()
 
   // Traducciones de secciones
   const translations = {
@@ -99,6 +107,16 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       return
     }
 
+    // Si necesita pago, mostrar modal de pago
+    if (needsPayment && downloadPrice) {
+      setPendingDownload({ 
+        language, 
+        price: downloadPrice 
+      })
+      setShowPaymentModal(true)
+      return
+    }
+
     try {
       const success = await downloadPDF(data, language)
       if (success) {
@@ -107,6 +125,52 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       }
     } catch (error) {
       console.error('Download error:', error)
+    }
+  }
+
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    if (!pendingDownload) return
+
+    try {
+      // Descargar automáticamente después del pago exitoso
+      const success = await downloadPDF(data, pendingDownload.language)
+      if (success) {
+        const message = pendingDownload.language === 'english' ? 'CV downloaded successfully!' : '¡CV descargado exitosamente!'
+        console.log(message)
+      }
+    } catch (error) {
+      console.error('Download error after payment:', error)
+    } finally {
+      setShowPaymentModal(false)
+      setPendingDownload(null)
+    }
+  }
+
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false)
+    setPendingDownload(null)
+  }
+
+  const processIndividualPayment = async () => {
+    if (!pendingDownload) return
+
+    try {
+      // Por ahora, redirigir al checkout con un plan LIFETIME como alternativa
+      // En el futuro se puede implementar Stripe Elements para pagos individuales
+      setShowPaymentModal(false)
+      setPendingDownload(null)
+      
+      // Mostrar mensaje explicando la alternativa
+      const confirmUpgrade = confirm(
+        `Para descargas adicionales, te recomendamos el plan Lifetime por $59.99 que incluye descargas ilimitadas.\n\n¿Quieres proceder al checkout del plan Lifetime?\n\n(Alternativamente, puedes registrarte para obtener más descargas gratuitas)`
+      )
+      
+      if (confirmUpgrade) {
+        window.location.href = '/checkout?plan=LIFETIME'
+      }
+
+    } catch (error) {
+      console.error('Payment error:', error)
     }
   }
 
@@ -256,116 +320,151 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
   return (
     <div className="space-y-6">
-      {/* Download Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            Descargar CV
-            {isAuthenticated && (
-              <span className="text-sm font-normal text-gray-500">
-                (Sesión activa)
-              </span>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Selecciona el idioma y descarga tu CV profesional
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Status */}
-          {getDownloadStatus()}
-          
-          {/* Download Buttons */}
-          <div className="space-y-4">
-            {/* Spanish Download */}
-            <div className="space-y-2">
-              <Button 
-                onClick={() => handleDownload('spanish')}
-                disabled={isGeneratingPDF || !isComplete || (!canDownload && !needsRegistration && !needsPayment)}
-                className="w-full flex items-center justify-center space-x-2"
-              >
-                {isGeneratingPDF ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : needsRegistration && !isAuthenticated ? (
-                  <User className="w-4 h-4" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                <span>{!isComplete ? 'Completa tu CV primero' : getButtonText('spanish')}</span>
-                {canDownload && !needsRegistration && isComplete && <CheckCircle className="w-4 h-4 text-green-500" />}
-              </Button>
-              
-              {/* Messages */}
-              {!isComplete && (
-                <p className="text-sm text-amber-600 text-center">
-                  ⚠️ Completa todas las secciones obligatorias antes de descargar
-                </p>
-              )}
-              {isComplete && needsRegistration && !isAuthenticated && (
-                <p className="text-sm text-amber-600 text-center">
-                  📝 Regístrate gratis para continuar con acceso completo
-                </p>
-              )}
-              {isComplete && needsPayment && isAuthenticated && !hasFullFeatureAccess && (
-                <p className="text-sm text-blue-600 text-center">
-                  💳 Descarga adicional por ${downloadPrice} (acceso completo agotado)
-                </p>
-              )}
-              {isComplete && hasFullFeatureAccess && !isLifetimeUser && !isProUser && (
-                <p className="text-sm text-green-600 text-center">
-                  🎉 Tienes acceso completo a todas las funciones hasta {userStats?.freeSpanishLimit || 2} descargas
-                </p>
-              )}
+      {/* Download Controls - Simplified */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardContent className="p-4">
+          {/* Mobile: Simple layout */}
+          <div className="block md:hidden">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Descargar CV</span>
+              {getPlanBadge()}
+            </div>
+            
+            {/* Status for mobile */}
+            <div className="text-xs text-gray-600 mb-3">
+              {isLoading ? "Verificando..." : 
+               error ? <span className="text-red-600">{error}</span> :
+               isLifetimeUser || isProUser ? (
+                 <span className="text-green-600">✨ Acceso ilimitado</span>
+               ) : hasFullFeatureAccess ? (
+                 <span className="text-green-600">
+                   {remainingFreeDownloads} descargas gratuitas restantes
+                 </span>
+               ) : (
+                 <span className="text-orange-600">
+                   ❌ Sin descargas disponibles - Necesitas pagar $1.99 por descarga
+                 </span>
+               )}
             </div>
 
-            {/* English Download */}
-            <div className="space-y-2">
+            {/* Simple mobile message */}
+            {!isComplete ? (
+              <p className="text-xs text-amber-600">
+                ⚠️ Completa tu CV para habilitar descargas
+              </p>
+            ) : hasFullFeatureAccess || isLifetimeUser || isProUser ? (
+              <p className="text-xs text-gray-600">
+                ✅ Usa los botones del header para descargar
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-orange-600">
+                  💳 Cada descarga adicional cuesta $1.99
+                </p>
+                {!isLifetimeUser && !isProUser && (
+                  <Button
+                    onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs bg-yellow-50 border-yellow-300 text-yellow-700"
+                  >
+                    🚀 Upgrade a Lifetime $59.99 (Sin límites)
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: More detailed layout */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Download className="w-4 h-4 text-gray-600" />
+                <h3 className="text-sm font-medium text-gray-700">Descargar CV</h3>
+                {isAuthenticated && (
+                  <Badge variant="outline" className="text-xs">
+                    Sesión activa
+                  </Badge>
+                )}
+              </div>
+              {getPlanBadge()}
+            </div>
+            
+            {/* Status message */}
+            <div className="mb-3 text-xs text-gray-600">
+              {isLoading && "Verificando límites..."}
+              {error && <span className="text-red-600">{error}</span>}
+              {!isLoading && !error && (
+                <>
+                  {isLifetimeUser || isProUser ? (
+                    <span className="text-green-600">✨ Acceso ilimitado</span>
+                  ) : hasFullFeatureAccess ? (
+                    <span className="text-green-600">
+                      🎉 Acceso completo ({remainingFreeDownloads} restantes)
+                    </span>
+                  ) : (
+                    <span className="text-orange-600">
+                      ❌ Sin descargas disponibles - $1.99 por descarga adicional
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            
+            {/* Desktop buttons */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <Button 
+                onClick={() => handleDownload('spanish')}
+                disabled={isGeneratingPDF || !isComplete}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                {isGeneratingPDF ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Download className="w-3 h-3" />
+                )}
+                <span>
+                  {!isComplete ? 'CV Incompleto' : 
+                   hasFullFeatureAccess || isLifetimeUser || isProUser ? 'PDF (ES)' :
+                   `PDF (ES) $${downloadPrice || '1.99'}`}
+                </span>
+              </Button>
+
               <Button 
                 onClick={() => handleDownload('english')}
                 disabled={isGeneratingPDF || !isComplete}
                 variant="outline"
-                className="w-full flex items-center justify-center space-x-2"
+                size="sm"
+                className="flex items-center gap-2"
               >
-                {isGeneratingPDF ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                <span>{!isComplete ? 'Completa tu CV primero' : getButtonText('english')}</span>
-                <Crown className="w-4 h-4 text-yellow-500" />
+                <Download className="w-3 h-3" />
+                <span>
+                  {!isComplete ? 'CV Incompleto' :
+                   isLifetimeUser || isProUser ? 'PDF (EN)' :
+                   hasFullFeatureAccess ? 'PDF (EN) Gratis' :
+                   `PDF (EN) $${downloadPrice || '1.99'}`}
+                </span>
+                <Crown className="w-3 h-3 text-yellow-500" />
               </Button>
-              
-              {!isComplete && (
-                <p className="text-sm text-amber-600 text-center">
-                  ⚠️ Completa todas las secciones obligatorias antes de descargar
-                </p>
-              )}
-              {isComplete && !(isLifetimeUser || isProUser) && (
-                <p className="text-sm text-gray-600 text-center">
-                  {hasFullFeatureAccess ? (
-                    `🇺🇸 Descarga en inglés incluida en tu acceso completo (${remainingFreeDownloads} restantes)`
-                  ) : (
-                    `🇺🇸 Descarga en inglés ${!isAuthenticated ? 'requiere registro y pago' : 'requiere pago'}`
-                  )}
-                </p>
+
+              {isAuthenticated && userStats && userStats.totalDownloads > 0 && !isLifetimeUser && !isProUser && (
+                <Button
+                  onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                >
+                  <Crown className="w-3 h-3" />
+                  <span>Lifetime $59.99</span>
+                </Button>
               )}
             </div>
 
-            {/* Lifetime Upgrade Offer */}
-            {isAuthenticated && userStats && userStats.totalDownloads > 0 && !isLifetimeUser && !isProUser && (
-              <div className="border-2 border-yellow-300 bg-yellow-50 rounded-lg p-4 text-center">
-                <Crown className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
-                <h3 className="font-semibold text-yellow-800 mb-1">
-                  🎉 ¡Oferta Especial!
-                </h3>
-                <p className="text-sm text-yellow-700 mb-2">
-                  Upgrade a Plan Lifetime por solo <strong>$59.99</strong>
-                </p>
-                <p className="text-xs text-yellow-600">
-                  ✨ Descargas ilimitadas en español e inglés
-                </p>
-              </div>
+            {!isComplete && (
+              <p className="text-xs text-amber-600 mt-2">
+                ⚠️ Completa tu CV para habilitar descargas
+              </p>
             )}
           </div>
         </CardContent>
@@ -544,6 +643,89 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
           )}
         </div>
       </div>
+
+      {/* Payment Modal for Individual Downloads */}
+      {showPaymentModal && pendingDownload && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold">Descarga Adicional</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePaymentCancel}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-2">
+                  Descarga en {pendingDownload.language === 'english' ? 'Inglés' : 'Español'}
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${pendingDownload.price.toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Pago único • Descarga inmediata
+                </p>
+              </div>
+
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>• ✅ Descarga inmediata después del pago</p>
+                <p>• ✅ CV optimizado para sistemas ATS</p>
+                <p>• ✅ Pago seguro con Stripe</p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handlePaymentCancel}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={processIndividualPayment}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={stripePayment.isLoading}
+                >
+                  {stripePayment.isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Pagar ${pendingDownload.price.toFixed(2)}
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="text-center pt-2">
+                <p className="text-xs text-gray-500">
+                  ¿Descargas frecuentes?{' '}
+                  <button
+                    onClick={() => {
+                      window.location.href = '/checkout?plan=LIFETIME'
+                    }}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    Upgrade a Lifetime $59.99
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
