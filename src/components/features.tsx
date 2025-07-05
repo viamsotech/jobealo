@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Zap, Target, Shield, Sparkles } from "lucide-react"
 
-export function Features() {
+export default function Features() {
   const features = [
     {
       icon: <Zap className="w-8 h-8 text-[#0052CC]" />,

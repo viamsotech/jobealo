@@ -409,19 +409,65 @@ export function ApplicationGenerator({
                       <h4 className="text-sm font-medium text-orange-800 mb-1">
                         {requiresPayment ? 'Pago requerido' : requiresRegistration ? 'Registro requerido' : 'Límite alcanzado'}
                       </h4>
-                      <div className="text-sm text-orange-700">
+                      <div className="text-sm text-orange-700 mb-4">
                         {requiresPayment && (
-                          <p>Necesitas pagar ${actionPrice} para usar esta función de IA.</p>
+                          <p>Tienes 2 opciones para usar esta función de IA:</p>
                         )}
                         {requiresRegistration && (
                           <p>Debes registrarte para acceder a las funciones de IA.</p>
                         )}
                         {!requiresPayment && !requiresRegistration && (
-                          <p>Has agotado tus acciones gratuitas. Upgrade a Pro o Lifetime para acceso ilimitado.</p>
+                          <p>Has agotado tus acciones gratuitas. Tienes 2 opciones para continuar:</p>
                         )}
                       </div>
-                      <div className="flex gap-2 mt-3">
-                        {requiresRegistration && (
+                      
+                      {/* Payment Options */}
+                      {(requiresPayment || (!requiresPayment && !requiresRegistration)) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          {/* Individual Payment */}
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-blue-800 mb-1">Pago por acción</p>
+                              <p className="text-xl font-bold text-blue-800 mb-2">${actionPrice}</p>
+                              <p className="text-xs text-blue-600 mb-2">Solo esta {isEmail ? 'email' : 'carta'}</p>
+                              <Button
+                                size="sm"
+                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                onClick={() => {
+                                  // TODO: Implement individual payment for applications
+                                  console.log('Individual payment for applications')
+                                }}
+                              >
+                                💳 Pagar $1.99
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Lifetime Upgrade */}
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-yellow-800 mb-1">Acceso ilimitado</p>
+                              <div className="mb-2">
+                                <span className="text-sm text-yellow-600 line-through">$99.99</span>
+                                <span className="text-xl font-bold text-yellow-800 ml-1">$59.99</span>
+                              </div>
+                              <p className="text-xs text-yellow-600 mb-2">Todas las funciones IA</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                                onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
+                              >
+                                ⭐ Upgrade
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Registration Option */}
+                      {requiresRegistration && (
+                        <div className="flex gap-2">
                           <Button 
                             size="sm" 
                             onClick={() => window.location.href = '/auth/signup'}
@@ -429,26 +475,8 @@ export function ApplicationGenerator({
                           >
                             Registrarse gratis
                           </Button>
-                        )}
-                        {requiresPayment && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
-                            className="bg-orange-600 hover:bg-orange-700"
-                          >
-                            Upgrade a Lifetime
-                          </Button>
-                        )}
-                        {!requiresPayment && !requiresRegistration && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => window.location.href = '/checkout?plan=LIFETIME'}
-                            className="bg-orange-600 hover:bg-orange-700"
-                          >
-                            Ver planes
-                          </Button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

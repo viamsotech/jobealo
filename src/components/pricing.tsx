@@ -55,6 +55,8 @@ const pricingPlans: PricingPlan[] = [
       { text: 'Mejoras con IA ilimitadas', included: true },
       { text: 'Traducción automática al inglés ilimitada', included: true },
       { text: 'Carta de presentación', included: true },
+      { text: 'Correos para vacantes con IA ilimitado', included: true },
+      { text: 'Generador de CV a partir de una vacante ilimitado', included: true },
     ],
     buttonText: 'Comenzar Ahora',
   },
@@ -196,24 +198,6 @@ export default function Pricing() {
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-16 text-center">
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="flex items-center justify-center">
-              <Star className="w-5 h-5 text-yellow-500 mr-2" />
-              <span className="text-gray-600">Más de 50,000 CVs creados</span>
-            </div>
-            <div className="flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-500 mr-2" />
-              <span className="text-gray-600">Plantillas profesionales</span>
-            </div>
-            <div className="flex items-center justify-center">
-              <Mail className="w-5 h-5 text-green-500 mr-2" />
-              <span className="text-gray-600">Soporte 24/7</span>
-            </div>
-          </div>
         </div>
       </div>
     </section>
