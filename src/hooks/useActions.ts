@@ -46,8 +46,21 @@ export function useActions() {
 
   // Check if user can perform a specific action
   const checkAction = useCallback(async (actionType: ActionType): Promise<ActionCheckResult> => {
-    if (!fingerprint) {
-      throw new Error('Fingerprint not available')
+    // For authenticated users, we can work without fingerprint
+    const userIdentifier = session?.user?.id || fingerprint
+    
+    if (!userIdentifier) {
+      console.warn('No user identifier available (no auth and no fingerprint), using anonymous defaults')
+      // Return a safe default for anonymous users
+      return {
+        allowed: false,
+        remaining: 0,
+        requiresPayment: false,
+        requiresRegistration: true,
+        price: null,
+        userType: 'ANONYMOUS',
+        currentActions: 0
+      }
     }
 
     setIsLoading(true)
@@ -58,7 +71,7 @@ export function useActions() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fingerprint,
+          fingerprint: fingerprint || 'anonymous',
           userId: session?.user?.id || null,
           actionType
         })
@@ -90,8 +103,11 @@ export function useActions() {
       stripeSessionId?: string
     }
   ): Promise<{ success: boolean; actionId?: string; message?: string }> => {
-    if (!fingerprint) {
-      throw new Error('Fingerprint not available')
+    // For authenticated users, we can work without fingerprint
+    const userIdentifier = session?.user?.id || fingerprint
+    
+    if (!userIdentifier) {
+      throw new Error('Cannot record action: user not authenticated and fingerprint not available')
     }
 
     setIsLoading(true)
@@ -102,7 +118,7 @@ export function useActions() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fingerprint,
+          fingerprint: fingerprint || 'anonymous',
           userId: session?.user?.id || null,
           actionType,
           details,
@@ -133,8 +149,26 @@ export function useActions() {
 
   // Get user statistics
   const refreshStats = useCallback(async (): Promise<UserActionStatus> => {
-    if (!fingerprint) {
-      throw new Error('Fingerprint not available')
+    // For authenticated users, we can work without fingerprint
+    const userIdentifier = session?.user?.id || fingerprint
+    
+    if (!userIdentifier) {
+      console.warn('No user identifier available for stats, using defaults')
+      const defaultStats: UserActionStatus = {
+        stats: {
+          totalActions: 0,
+          freeActionsUsed: 0,
+          freeActionLimit: 3,
+          paidActions: 0,
+          plan: 'FREEMIUM',
+          memberSince: null
+        },
+        hasFullAccess: false,
+        remainingFreeActions: 3,
+        userType: 'ANONYMOUS'
+      }
+      setUserStats(defaultStats)
+      return defaultStats
     }
 
     setIsLoading(true)
@@ -145,7 +179,7 @@ export function useActions() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fingerprint,
+          fingerprint: fingerprint || 'anonymous',
           userId: session?.user?.id || null
         })
       })
@@ -161,7 +195,24 @@ export function useActions() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
-      throw err
+      console.warn('Failed to fetch stats, using defaults:', errorMessage)
+      
+      // Return safe defaults instead of throwing
+      const defaultStats: UserActionStatus = {
+        stats: {
+          totalActions: 0,
+          freeActionsUsed: 0,
+          freeActionLimit: 3,
+          paidActions: 0,
+          plan: session?.user ? 'FREEMIUM' : 'ANONYMOUS',
+          memberSince: null
+        },
+        hasFullAccess: false,
+        remainingFreeActions: 3,
+        userType: session?.user ? 'FREEMIUM' : 'ANONYMOUS'
+      }
+      setUserStats(defaultStats)
+      return defaultStats
     } finally {
       setIsLoading(false)
     }
@@ -169,7 +220,9 @@ export function useActions() {
 
   // Auto-refresh stats when dependencies change
   useEffect(() => {
-    if (fingerprint) {
+    // Only try to refresh if we have some way to identify the user
+    const userIdentifier = session?.user?.id || fingerprint
+    if (userIdentifier) {
       refreshStats().catch(console.error)
     }
   }, [fingerprint, session?.user?.id, refreshStats])

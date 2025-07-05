@@ -64,144 +64,158 @@ export function useDownloads(): UseDownloadsReturn {
   const [error, setError] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [hasFullFeatureAccess, setHasFullFeatureAccess] = useState(false)
+  const [remainingFreeDownloads, setRemainingFreeDownloads] = useState(0)
 
   // Generate fingerprint on mount
   useEffect(() => {
     async function initFingerprint() {
       try {
-        setIsLoading(true)
+        // Check if we're in browser environment
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+          console.warn('Downloads: Fingerprinting not available in server environment')
+          return
+        }
+
+        // Check if required APIs are available
+        if (!navigator || !screen || !crypto || !crypto.subtle) {
+          console.warn('Downloads: Required browser APIs not available for fingerprinting')
+          return
+        }
+
         const fp = await generateFingerprint()
         setFingerprint(fp)
       } catch (err) {
-        setError('Failed to initialize user tracking')
-        console.error('Fingerprint generation error:', err)
-      } finally {
-        setIsLoading(false)
+        console.warn('Downloads: Error generating fingerprint (will use fallback):', err)
+        // Don't throw, just log the error and continue without fingerprint
       }
     }
 
     initFingerprint()
   }, [])
 
-  const checkDownloadLimitInternal = useCallback(async (
-    language: 'spanish' | 'english' = 'spanish'
-  ) => {
-    if (!fingerprint) return
+  // Check download limits - made more robust
+  const checkDownloadLimitInternal = useCallback(async () => {
+    // For authenticated users, we can work without fingerprint
+    const userIdentifier = session?.user?.id || fingerprint?.fingerprintHash
+    
+    if (!userIdentifier) {
+      console.warn('Downloads: No user identifier available, using default limits')
+      setDownloadCheck({
+        allowed: false,
+        remaining: 3,
+        requiresRegistration: !session?.user,
+        requiresPayment: false,
+        price: 1.99,
+        userType: 'ANONYMOUS',
+        downloadType: 'FREE_SPANISH'
+      })
+      return
+    }
 
     try {
       const response = await fetch('/api/downloads/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fingerprint, 
-          language, 
-          userId: session?.user?.id 
+        body: JSON.stringify({
+          fingerprint: fingerprint?.fingerprintHash || 'anonymous',
+          userId: session?.user?.id || null
         })
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to check download limits')
-      }
-
       const data = await response.json()
       
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to check download limits')
+      }
+
       setDownloadCheck(data)
-      setError(null)
-    } catch (err) {
-      setError('Failed to check download limits')
-      console.error('Download limit check error:', err)
+    } catch (error) {
+      console.warn('Downloads: Error checking limits, using defaults:', error)
+      setDownloadCheck({
+        allowed: false,
+        remaining: session?.user ? 3 : 0,
+        requiresRegistration: !session?.user,
+        requiresPayment: false,
+        price: 1.99,
+        userType: session?.user ? 'REGISTERED_PRO' : 'ANONYMOUS',
+        downloadType: 'FREE_SPANISH'
+      })
     }
   }, [fingerprint, session])
 
-  // Function to fix fingerprint linking
+  // Function to fix fingerprint linking - made more robust
   const fixFingerprintLinking = useCallback(async (): Promise<boolean> => {
-    if (!fingerprint || !session?.user?.id) return false
+    if (!fingerprint || !session?.user?.id) {
+      console.warn('Downloads: Cannot fix fingerprint linking - missing fingerprint or user')
+      return false
+    }
 
     try {
       const response = await fetch('/api/user/fix-fingerprint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fingerprintHash: fingerprint.fingerprintHash 
+        body: JSON.stringify({
+          userId: session.user.id,
+          fingerprintHash: fingerprint.fingerprintHash
         })
       })
 
       const data = await response.json()
 
-      if (response.ok) {
-        // After fixing, check download limits
-        setTimeout(() => {
-          checkDownloadLimitInternal('spanish')
-        }, 1000)
+      if (response.ok && data.success) {
+        console.log('✅ Fingerprint linking fixed successfully')
+        // Refresh download limits after fixing
+        await checkDownloadLimitInternal()
         return true
       } else {
-        console.error('❌ Failed to fix fingerprint:', data.error)
+        console.warn('❌ Failed to fix fingerprint:', data.error)
         return false
       }
     } catch (error) {
-      console.error('❌ Error fixing fingerprint:', error)
+      console.warn('❌ Error fixing fingerprint:', error)
       return false
     }
   }, [fingerprint, session?.user?.id, checkDownloadLimitInternal])
 
+  // Refresh download statistics - made more robust
   const refreshStatsInternal = useCallback(async () => {
-    if (!fingerprint) return
+    // For authenticated users, we can work without fingerprint
+    const userIdentifier = session?.user?.id || fingerprint?.fingerprintHash
+    
+    if (!userIdentifier) {
+      console.warn('Downloads: No user identifier available for stats')
+      return
+    }
 
     try {
       const response = await fetch('/api/downloads/stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fingerprint, 
-          userId: session?.user?.id 
+        body: JSON.stringify({
+          fingerprint: fingerprint?.fingerprintHash || 'anonymous',
+          userId: session?.user?.id || null
         })
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user stats')
-      }
-
       const data = await response.json()
-      setUserStats(data.stats)
-    } catch (err) {
-      console.error('Stats fetch error:', err)
-    }
-  }, [fingerprint, session])
-
-  const checkFullAccessInternal = useCallback(async (): Promise<boolean> => {
-    if (!fingerprint) return false
-
-    try {
-      const response = await fetch('/api/downloads/full-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fingerprint, 
-          userId: session?.user?.id 
-        })
-      })
-
-      if (!response.ok) {
-        return false
+      
+      if (response.ok) {
+        setUserStats(data)
+      } else {
+        console.warn('Downloads: Failed to fetch stats:', data.error)
       }
-
-      const data = await response.json()
-      const hasAccess = data.hasFullAccess
-      setHasFullFeatureAccess(hasAccess)
-      return hasAccess
-    } catch (err) {
-      console.error('Full access check error:', err)
-      return false
+    } catch (error) {
+      console.warn('Downloads: Error fetching stats:', error)
     }
   }, [fingerprint, session])
 
   // Check download limits when fingerprint is ready or session changes
   useEffect(() => {
-    if (fingerprint && status !== 'loading') {
-      checkDownloadLimitInternal('spanish')
-      refreshStatsInternal()
+    const userIdentifier = session?.user?.id || fingerprint?.fingerprintHash
+    if (userIdentifier && status !== 'loading') {
+      checkDownloadLimitInternal()
     }
-  }, [fingerprint, session, status, refreshStatsInternal])
+  }, [fingerprint, session, status, checkDownloadLimitInternal])
 
   // Force refresh when user logs in (to link fingerprint to user)
   useEffect(() => {
@@ -211,69 +225,107 @@ export function useDownloads(): UseDownloadsReturn {
     }
   }, [fingerprint, session?.user?.id, status, fixFingerprintLinking])
 
-  const recordDownload = useCallback(async (options: {
-    language?: 'spanish' | 'english'
-    fileName?: string
-    amountPaid?: number
-    stripePaymentIntentId?: string
-  }): Promise<boolean> => {
-    if (!fingerprint) {
-      setError('User fingerprint not ready')
+  // Record download function - made more robust
+  const recordDownload = useCallback(async (params: {
+    language: 'spanish' | 'english',
+    fileName: string,
+    cvData: {
+      name: string
+      titles: string[]
+    }
+  }) => {
+    const userIdentifier = session?.user?.id || fingerprint?.fingerprintHash
+    
+    if (!userIdentifier) {
+      setError('Downloads: User identification not available')
       return false
     }
 
-    const {
-      language = 'spanish',
-      fileName,
-      amountPaid = 0,
-      stripePaymentIntentId
-    } = options
-
     try {
+      setIsLoading(true)
+      setError(null)
+
+      console.log('📝 Recording download...', params)
+
       const response = await fetch('/api/downloads/record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fingerprint, 
-          language, 
-          fileName, 
-          userId: session?.user?.id,
-          amountPaid,
-          stripePaymentIntentId
+        body: JSON.stringify({
+          fingerprint: fingerprint?.fingerprintHash || 'anonymous',
+          userId: session?.user?.id || null,
+          language: params.language,
+          fileName: params.fileName,
+          cvData: params.cvData
         })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        if (response.status === 429) {
-          setError('Download limit exceeded')
-        } else if (response.status === 402) {
-          setError('Payment required for this download')
-        } else if (response.status === 401) {
-          setError('Registration required for this download')
-        } else {
-          setError(data.error || 'Failed to record download')
-        }
-        setDownloadCheck(data)
-        return false
+        throw new Error(data.error || 'Failed to record download')
       }
 
-      // Update local state with new limits
-      setDownloadCheck(data)
-      setError(null)
-      
-      // Refresh stats to show updated usage
-      await refreshStatsInternal()
-      
+      console.log('✅ Download recorded successfully:', data)
+
+      // Refresh stats and limits
+      await Promise.all([
+        refreshStatsInternal(),
+        checkDownloadLimitInternal()
+      ])
+
       return true
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to record download'
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('❌ Error recording download:', errorMessage)
       setError(errorMessage)
-      console.error('Download record error:', err)
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }, [fingerprint, session, refreshStatsInternal, checkDownloadLimitInternal])
+
+  // Check full access function - made more robust
+  const checkFullAccess = useCallback(async (): Promise<boolean> => {
+    const userIdentifier = session?.user?.id || fingerprint?.fingerprintHash
+    
+    if (!userIdentifier) {
+      setError('Downloads: User identification not available')
       return false
     }
-  }, [fingerprint, session, refreshStatsInternal])
+
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const response = await fetch('/api/downloads/full-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fingerprint: fingerprint?.fingerprintHash || 'anonymous',
+          userId: session?.user?.id || null
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to check full access')
+      }
+
+      setHasFullFeatureAccess(data.hasFullAccess)
+      setRemainingFreeDownloads(data.remainingFreeDownloads)
+
+      console.log('✅ Full access check:', data)
+      return data.hasFullAccess
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.warn('Downloads: Error checking full access:', errorMessage)
+      setError(errorMessage)
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }, [fingerprint, session])
 
   // Integrated PDF download with tracking
   const downloadPDF = useCallback(async (
@@ -295,7 +347,7 @@ export function useDownloads(): UseDownloadsReturn {
     
     try {
       // First check limits
-      await checkDownloadLimitInternal(language)
+      await checkDownloadLimitInternal()
       
       // If not allowed, show error
       if (downloadCheck && !downloadCheck.allowed) {
@@ -619,7 +671,11 @@ export function useDownloads(): UseDownloadsReturn {
       // Record download in Supabase BEFORE generating PDF
       const recordSuccess = await recordDownload({
         language,
-        fileName
+        fileName,
+        cvData: {
+          name: `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`,
+          titles: cvData.personalInfo.titles
+        }
       })
 
       if (!recordSuccess) {
@@ -641,15 +697,14 @@ export function useDownloads(): UseDownloadsReturn {
 
   // Public functions
   const checkDownloadLimit = useCallback((language: 'spanish' | 'english' = 'spanish') => 
-    checkDownloadLimitInternal(language), [checkDownloadLimitInternal])
+    checkDownloadLimitInternal(), [checkDownloadLimitInternal])
   
   const refreshStats = useCallback(() => refreshStatsInternal(), [refreshStatsInternal])
 
-  const checkFullAccess = useCallback(() => checkFullAccessInternal(), [checkFullAccessInternal])
+  const checkFullAccessInternal = useCallback(() => checkFullAccess(), [checkFullAccess])
 
   // Computed values
   const canDownload = downloadCheck?.allowed ?? false
-  const remainingFreeDownloads = downloadCheck?.remaining ?? 0
   const isLifetimeUser = downloadCheck?.userType === 'LIFETIME'
   const isProUser = downloadCheck?.userType === 'REGISTERED_PRO'
   const needsRegistration = downloadCheck?.requiresRegistration ?? false
@@ -718,7 +773,7 @@ export function useDownloads(): UseDownloadsReturn {
     error,
     downloadPDF,
     hasFullFeatureAccess,
-    checkFullAccess,
+    checkFullAccess: checkFullAccessInternal,
     fixFingerprintLinking,
     isAuthenticated,
     userPlan,
