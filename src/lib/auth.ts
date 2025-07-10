@@ -108,21 +108,40 @@ export const authOptions: NextAuthOptions = {
         return false
       }
     },
-    async jwt({ token, user, account }) {
-      if (account && user) {
-        // Get user from database
-        const { data: dbUser } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', user.email!)
-          .single()
+    async jwt({ token, user, account, trigger }) {
+      // Always fetch the latest user data from database to ensure plan is up to date
+      if (token.userId || (account && user)) {
+        let userId = token.userId
+        
+        // On first login, get userId from user object
+        if (account && user) {
+          const { data: dbUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', user.email!)
+            .single()
 
-        if (dbUser) {
-          token.userId = dbUser.id
-          token.plan = dbUser.plan
-          token.provider = dbUser.provider
+          if (dbUser) {
+            userId = dbUser.id
+          }
+        }
+
+        // Always fetch current user data to get latest plan
+        if (userId) {
+          const { data: currentUser } = await supabase
+            .from('users')
+            .select('id, plan, provider')
+            .eq('id', userId)
+            .single()
+
+          if (currentUser) {
+            token.userId = currentUser.id
+            token.plan = currentUser.plan
+            token.provider = currentUser.provider
+          }
         }
       }
+      
       return token
     },
     async session({ session, token }) {

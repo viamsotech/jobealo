@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { CVData } from '@/components/cv-builder'
 import { X, Sparkles, FileText, Target, Copy, Save, Loader2 } from 'lucide-react'
 import { useActions } from '@/hooks/useActions'
+import PaymentModal from '@/components/payment/payment-modal'
 
 interface CompletedCV {
   id: string
@@ -41,6 +42,14 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
     price: number | null
   } | null>(null)
 
+  // Payment states
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [pendingAdaptation, setPendingAdaptation] = useState<{
+    cvId: string
+    jobDescription: string
+    adaptationMode: string
+  } | null>(null)
+
   const {
     canAdaptCV,
     recordAdaptCV,
@@ -48,6 +57,19 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
     userType,
     remainingFreeActions
   } = useActions()
+
+  // Debug: Log completed CVs when component mounts
+  useEffect(() => {
+    console.log('🎯 CVAdapter Debug Info:')
+    console.log('  - Received completedCVs:', completedCVs)
+    console.log('  - completedCVs length:', completedCVs.length)
+    console.log('  - completedCVs details:', completedCVs.map(cv => ({
+      id: cv.id,
+      title: cv.title,
+      updatedAt: cv.updatedAt,
+      hasCvData: !!cv.cvData
+    })))
+  }, [completedCVs])
 
   // Check action availability when component mounts
   useEffect(() => {
@@ -122,6 +144,67 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
     if (adaptedCV && selectedCV) {
       onAdaptationComplete(adaptedCV, selectedCV.title)
     }
+  }
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentModal(false)
+    
+    if (!pendingAdaptation) return
+
+    // After successful payment, perform the adaptation directly
+    setIsAdapting(true)
+
+    try {
+      const cvData = completedCVs.find(cv => cv.id === pendingAdaptation.cvId)?.cvData
+      if (!cvData) return
+
+      const adapted = await fetch('/api/ai/adapt-cv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cvData: cvData,
+          jobDescription: pendingAdaptation.jobDescription,
+          adaptationFocus: pendingAdaptation.adaptationMode as 'Optimización general para la vacante'
+        }),
+      })
+
+      const data = await adapted.json()
+
+      if (!adapted.ok) {
+        throw new Error(data.error || 'Error al adaptar el CV')
+      }
+
+      // ✅ NO need to record action - it was already recorded during payment processing
+      // The backend automatically records the action when payment is successful
+
+      setAdaptedCV(data.adaptedCV)
+      setOriginalCV(cvData)
+      setStep('preview')
+
+      // Show success message
+      alert('¡CV adaptado exitosamente!')
+    } catch (error) {
+      console.error('Error adapting CV after payment:', error)
+      setStep('select')
+      alert('Error al adaptar el CV. Por favor, intenta de nuevo.')
+    } finally {
+      setIsAdapting(false)
+      setPendingAdaptation(null)
+    }
+  }
+
+  const handleIndividualPayment = () => {
+    // Store current configuration for after payment
+    setPendingAdaptation({
+      cvId: selectedCVId,
+      jobDescription: jobDescription.trim(),
+      adaptationMode: adaptationFocus.trim() || 'Optimización general para la vacante'
+    })
+    
+    // Show payment modal
+    setShowPaymentModal(true)
   }
 
   // Detailed change detection
@@ -327,27 +410,52 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
               <p className="text-sm text-gray-600 mb-3">
                 Elige el CV que quieres adaptar para la vacante
               </p>
-              <Select value={selectedCVId} onValueChange={setSelectedCVId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={`Selecciona un CV (${completedCVs.length} disponibles)`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {completedCVs.map((cv) => (
-                    <SelectItem key={cv.id} value={cv.id}>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span>{cv.title}</span>
-                        <Badge variant="secondary" className="text-xs ml-auto">
-                          {new Date(cv.updatedAt).toLocaleDateString()}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                  {completedCVs.length === 0 && (
-                    <div className="p-2 text-gray-500 text-sm">No hay CVs completados disponibles</div>
-                  )}
-                </SelectContent>
-              </Select>
+
+              {completedCVs.length > 0 ? (
+                <Select 
+                  value={selectedCVId} 
+                  onValueChange={(value) => {
+                    console.log('🎯 CV selected:', value)
+                    setSelectedCVId(value)
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={`Selecciona un CV (${completedCVs.length} disponibles)`} />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {completedCVs.map((cv) => (
+                      <SelectItem key={cv.id} value={cv.id}>
+                        <div className="flex items-center gap-2 w-full">
+                          <FileText className="h-4 w-4 flex-shrink-0" />
+                          <span className="flex-1">{cv.title}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            {new Date(cv.updatedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <FileText className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">
+                    No hay CVs completados disponibles
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Para usar esta función, necesitas tener al menos un CV completado al 100%.
+                    Completa todas las secciones de un CV y regresa aquí.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={onClose}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    Ir a Mis CVs
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Job Description */}
@@ -429,10 +537,7 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
                             <Button
                               size="sm"
                               className="w-full bg-blue-600 hover:bg-blue-700"
-                              onClick={() => {
-                                // TODO: Implement individual payment for CV adaptation
-                                console.log('Individual payment for CV adaptation')
-                              }}
+                              onClick={handleIndividualPayment}
                             >
                               💳 Pagar $1.99
                             </Button>
@@ -507,6 +612,18 @@ export default function CVAdapter({ completedCVs, onClose, onAdaptationComplete 
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        individualPayment={{
+          amount: actionPrice,
+          actionType: 'adapt-cv',
+          description: 'Adaptar CV para vacante específica con IA'
+        }}
+      />
     </div>
   )
 } 

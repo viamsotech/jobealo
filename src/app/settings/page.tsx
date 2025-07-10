@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Eye, EyeOff, User, Lock, Mail, CheckCircle, AlertCircle, Crown } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, User, Lock, Mail, CheckCircle, AlertCircle, Crown, RefreshCw } from "lucide-react"
 import Image from "next/image"
 
 export default function Settings() {
   const { data: session, status, update } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -136,6 +137,32 @@ export default function Settings() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSyncPlan = async () => {
+    setIsSyncing(true)
+    setMessage({ type: '', text: '' })
+
+    try {
+      const response = await fetch('/api/user/sync-plan', {
+        method: 'POST'
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMessage({ type: 'success', text: `Plan sincronizado: ${data.plan}` })
+        
+        // Force session update to reflect the latest plan
+        await update()
+      } else {
+        const errorData = await response.json()
+        setMessage({ type: 'error', text: `Error: ${errorData.error}` })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error al sincronizar el plan' })
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -397,6 +424,29 @@ export default function Settings() {
             </CardContent>
           </Card>
         )}
+
+        {/* Sync Plan Button */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <RefreshCw className="w-5 h-5" />
+              <span>Sincronizar Plan</span>
+            </CardTitle>
+            <CardDescription>
+              Actualiza tu plan de suscripción
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              type="button"
+              disabled={isSyncing}
+              onClick={handleSyncPlan}
+              className="w-full"
+            >
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Plan'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

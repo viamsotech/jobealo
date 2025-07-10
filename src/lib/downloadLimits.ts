@@ -159,9 +159,9 @@ export async function checkDownloadLimit(
     } else {
       // Must pay for additional Spanish downloads
       const result = {
-        allowed: userType !== 'ANONYMOUS', // Anonymous users must register to pay
+        allowed: true, // Allow anonymous users to pay for downloads
         remaining: 0,
-        requiresRegistration: userType === 'ANONYMOUS',
+        requiresRegistration: false, // Don't require registration for payment
         requiresPayment: true,
         price: limits.spanish_price,
         userType,
@@ -175,9 +175,9 @@ export async function checkDownloadLimit(
   // Check English downloads (always requires payment for non-PRO/LIFETIME)
   if (language === 'english') {
     const result = {
-      allowed: userType !== 'ANONYMOUS', // Anonymous users must register to pay
+      allowed: true, // Allow anonymous users to pay for downloads
       remaining: 0,
-      requiresRegistration: userType === 'ANONYMOUS',
+      requiresRegistration: false, // Don't require registration for payment
       requiresPayment: true,
       price: limits.english_price,
       userType,

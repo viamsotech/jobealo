@@ -51,12 +51,12 @@ export function useActions() {
     
     if (!userIdentifier) {
       console.warn('No user identifier available (no auth and no fingerprint), using anonymous defaults')
-      // Return a safe default for anonymous users
+      // Return a safe default for anonymous users - allow actions with payment but no registration required
       return {
-        allowed: false,
-        remaining: 0,
-        requiresPayment: false,
-        requiresRegistration: true,
+        allowed: true, // Allow anonymous users to use features
+        remaining: 3, // Give them the default 3 free actions
+        requiresPayment: false, // First few are free
+        requiresRegistration: false, // Don't require registration
         price: null,
         userType: 'ANONYMOUS',
         currentActions: 0
@@ -103,13 +103,9 @@ export function useActions() {
       stripeSessionId?: string
     }
   ): Promise<{ success: boolean; actionId?: string; message?: string }> => {
-    // For authenticated users, we can work without fingerprint
-    const userIdentifier = session?.user?.id || fingerprint
+    // Always call the API endpoint - let the backend handle the logic
+    // No early returns here to ensure all actions are properly tracked
     
-    if (!userIdentifier) {
-      throw new Error('Cannot record action: user not authenticated and fingerprint not available')
-    }
-
     setIsLoading(true)
     setError(null)
 

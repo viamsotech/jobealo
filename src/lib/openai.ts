@@ -272,18 +272,38 @@ export async function improveWithAI(
 }
 
 // Función específica para traducir un CV completo al inglés
-export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
+export async function translateCVToEnglish(cvData: any): Promise<any> {
   try {
-    const translatedData = { ...cvData };
+    const translatedData = JSON.parse(JSON.stringify(cvData)); // Deep copy
 
     // Traducir títulos profesionales
-    if (cvData.personalInfo.titles.length > 0) {
+    if (cvData.personalInfo?.titles?.length > 0) {
       const titlesText = cvData.personalInfo.titles.join('\n');
       const translatedTitles = await improveWithAI('translate-to-english', titlesText);
-      translatedData.personalInfo = {
-        ...translatedData.personalInfo,
-        titles: translatedTitles
-      };
+      translatedData.personalInfo.titles = translatedTitles;
+    }
+
+    // Traducir información de contacto
+    if (cvData.personalInfo?.contactInfo) {
+      const contactInfo = cvData.personalInfo.contactInfo;
+      
+      // Traducir nacionalidad
+      if (contactInfo.nationality?.show && contactInfo.nationality?.value) {
+        const translatedNationality = await improveWithAI('translate-to-english', contactInfo.nationality.value);
+        translatedData.personalInfo.contactInfo.nationality.value = translatedNationality[0] || contactInfo.nationality.value;
+      }
+      
+      // Traducir país
+      if (contactInfo.country?.show && contactInfo.country?.value) {
+        const translatedCountry = await improveWithAI('translate-to-english', contactInfo.country.value);
+        translatedData.personalInfo.contactInfo.country.value = translatedCountry[0] || contactInfo.country.value;
+      }
+      
+      // Traducir ciudad
+      if (contactInfo.city?.show && contactInfo.city?.value) {
+        const translatedCity = await improveWithAI('translate-to-english', contactInfo.city.value);
+        translatedData.personalInfo.contactInfo.city.value = translatedCity[0] || contactInfo.city.value;
+      }
     }
 
     // Traducir resumen profesional
@@ -293,23 +313,23 @@ export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
     }
 
     // Traducir competencias
-    if (cvData.skills.length > 0) {
+    if (cvData.skills?.length > 0) {
       const skillsText = cvData.skills.join('\n');
       const translatedSkills = await improveWithAI('translate-to-english', skillsText);
       translatedData.skills = translatedSkills;
     }
 
     // Traducir herramientas
-    if (cvData.tools.length > 0) {
+    if (cvData.tools?.length > 0) {
       const toolsText = cvData.tools.join('\n');
       const translatedTools = await improveWithAI('translate-to-english', toolsText);
       translatedData.tools = translatedTools;
     }
 
-    // Traducir experiencia laboral
-    if (cvData.experience.length > 0) {
+    // Traducir experiencia laboral - FIX: usar la estructura correcta
+    if (cvData.experience?.enabled && cvData.experience?.items?.length > 0) {
       const translatedExperience = await Promise.all(
-        cvData.experience.map(async (exp) => {
+        cvData.experience.items.map(async (exp: any) => {
           const translatedExp = { ...exp };
           
           // Traducir puesto
@@ -318,9 +338,20 @@ export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
             translatedExp.position = translatedPosition[0] || exp.position;
           }
           
+          // Traducir empresa (opcional, pero some names might need translation)
+          if (exp.company) {
+            // Solo traducir si parece ser un nombre genérico, no una marca específica
+            const genericTerms = ['empresa', 'compañía', 'corporación', 'organización'];
+            const needsTranslation = genericTerms.some(term => exp.company.toLowerCase().includes(term));
+            if (needsTranslation) {
+              const translatedCompany = await improveWithAI('translate-to-english', exp.company);
+              translatedExp.company = translatedCompany[0] || exp.company;
+            }
+          }
+          
           // Traducir responsabilidades
-                      if (exp.responsibilities.length > 0) {
-              const responsibilitiesText = exp.responsibilities.filter((r) => r.trim()).join('\n');
+          if (exp.responsibilities?.length > 0) {
+            const responsibilitiesText = exp.responsibilities.filter((r: string) => r.trim()).join('\n');
             if (responsibilitiesText) {
               const translatedResponsibilities = await improveWithAI('translate-to-english', responsibilitiesText);
               translatedExp.responsibilities = translatedResponsibilities;
@@ -330,13 +361,13 @@ export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
           return translatedExp;
         })
       );
-      translatedData.experience = translatedExperience;
+      translatedData.experience.items = translatedExperience;
     }
 
     // Traducir educación
-    if (cvData.education.length > 0) {
+    if (cvData.education?.length > 0) {
       const translatedEducation = await Promise.all(
-        cvData.education.map(async (edu) => {
+        cvData.education.map(async (edu: any) => {
           const translatedEdu = { ...edu };
           
           // Traducir título/carrera
@@ -345,10 +376,20 @@ export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
             translatedEdu.degree = translatedDegree[0] || edu.degree;
           }
           
-          // Traducir nivel
+          // Traducir nivel educativo
           if (edu.level) {
             const translatedLevel = await improveWithAI('translate-to-english', edu.level);
             translatedEdu.level = translatedLevel[0] || edu.level;
+          }
+          
+          // Traducir universidad (solo si es genérica)
+          if (edu.university) {
+            const genericTerms = ['universidad', 'instituto', 'colegio', 'escuela'];
+            const needsTranslation = genericTerms.some(term => edu.university.toLowerCase().includes(term));
+            if (needsTranslation) {
+              const translatedUniversity = await improveWithAI('translate-to-english', edu.university);
+              translatedEdu.university = translatedUniversity[0] || edu.university;
+            }
           }
           
           return translatedEdu;
@@ -358,29 +399,37 @@ export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
     }
 
     // Traducir certificaciones
-    if (cvData.certifications.enabled && cvData.certifications.items.length > 0) {
+    if (cvData.certifications?.enabled && cvData.certifications?.items?.length > 0) {
       const translatedCertifications = await Promise.all(
-        cvData.certifications.items.map(async (cert) => {
+        cvData.certifications.items.map(async (cert: any) => {
           const translatedCert = { ...cert };
           
+          // Traducir nombre de certificación
           if (cert.name) {
             const translatedName = await improveWithAI('translate-to-english', cert.name);
             translatedCert.name = translatedName[0] || cert.name;
           }
           
+          // Traducir institución (solo si es genérica)
+          if (cert.institution) {
+            const genericTerms = ['instituto', 'academia', 'centro', 'organización'];
+            const needsTranslation = genericTerms.some(term => cert.institution.toLowerCase().includes(term));
+            if (needsTranslation) {
+              const translatedInstitution = await improveWithAI('translate-to-english', cert.institution);
+              translatedCert.institution = translatedInstitution[0] || cert.institution;
+            }
+          }
+          
           return translatedCert;
         })
       );
-      translatedData.certifications = {
-        ...translatedData.certifications,
-        items: translatedCertifications
-      };
+      translatedData.certifications.items = translatedCertifications;
     }
 
     // Traducir idiomas
-    if (cvData.languages.length > 0) {
+    if (cvData.languages?.length > 0) {
       const translatedLanguages = await Promise.all(
-        cvData.languages.map(async (lang) => {
+        cvData.languages.map(async (lang: any) => {
           const translatedLang = { ...lang };
           
           // Traducir nombre del idioma
@@ -399,6 +448,28 @@ export async function translateCVToEnglish(cvData: CVData): Promise<CVData> {
         })
       );
       translatedData.languages = translatedLanguages;
+    }
+
+    // Traducir referencias
+    if (cvData.references?.enabled && cvData.references?.items?.length > 0) {
+      const translatedReferences = await Promise.all(
+        cvData.references.items.map(async (ref: any) => {
+          const translatedRef = { ...ref };
+          
+          // Traducir empresa/compañía de la referencia
+          if (ref.company) {
+            const genericTerms = ['empresa', 'compañía', 'corporación', 'organización'];
+            const needsTranslation = genericTerms.some(term => ref.company.toLowerCase().includes(term));
+            if (needsTranslation) {
+              const translatedCompany = await improveWithAI('translate-to-english', ref.company);
+              translatedRef.company = translatedCompany[0] || ref.company;
+            }
+          }
+          
+          return translatedRef;
+        })
+      );
+      translatedData.references.items = translatedReferences;
     }
 
     return translatedData;

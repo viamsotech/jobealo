@@ -16,7 +16,12 @@ export default function CheckoutSuccessPage() {
     // Actualizar sesión para reflejar el nuevo plan
     const refreshSession = async () => {
       if (session) {
+        // Force a complete session refresh
         await update()
+        // Additional refresh to ensure JWT is rebuilt
+        setTimeout(async () => {
+          await update()
+        }, 1000)
       }
       setIsLoading(false)
     }

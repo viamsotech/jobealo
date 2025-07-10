@@ -25,6 +25,9 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
   } | null>(null)
   const [showIndividualPaymentModal, setShowIndividualPaymentModal] = useState(false)
   const [individualPaymentData, setIndividualPaymentData] = useState<{ amount: number, language: string } | null>(null)
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [translatedData, setTranslatedData] = useState<CVData | null>(null)
+  const [showEnglishVersion, setShowEnglishVersion] = useState(isEnglishVersion)
   
   const { data: session } = useSession()
   const {
@@ -66,25 +69,28 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
   const stripePayment = useStripePayment()
 
-  // Traducciones de secciones
+  // Traducciones de secciones - usar las correctas según el estado actual
   const translations = {
-    professionalSummary: isEnglishVersion ? "PROFESSIONAL SUMMARY" : "RESUMEN PROFESIONAL",
-    coreCompetencies: isEnglishVersion ? "CORE COMPETENCIES" : "COMPETENCIAS PRINCIPALES", 
-    toolsTech: isEnglishVersion ? "TOOLS & TECHNOLOGIES" : "HERRAMIENTAS & TECNOLOGÍAS",
-    professionalExperience: isEnglishVersion ? "PROFESSIONAL EXPERIENCE" : "EXPERIENCIA PROFESIONAL",
-    education: isEnglishVersion ? "EDUCATION" : "EDUCACIÓN",
-    certifications: isEnglishVersion ? "CERTIFICATIONS" : "CERTIFICACIONES",
-    languages: isEnglishVersion ? "LANGUAGES" : "IDIOMAS",
-    references: isEnglishVersion ? "REFERENCES" : "REFERENCIAS",
-    years: isEnglishVersion ? "years" : "años"
+    professionalSummary: (showEnglishVersion && translatedData) ? "PROFESSIONAL SUMMARY" : "RESUMEN PROFESIONAL",
+    coreCompetencies: (showEnglishVersion && translatedData) ? "CORE COMPETENCIES" : "COMPETENCIAS PRINCIPALES", 
+    toolsTech: (showEnglishVersion && translatedData) ? "TOOLS & TECHNOLOGIES" : "HERRAMIENTAS & TECNOLOGÍAS",
+    professionalExperience: (showEnglishVersion && translatedData) ? "PROFESSIONAL EXPERIENCE" : "EXPERIENCIA PROFESIONAL",
+    education: (showEnglishVersion && translatedData) ? "EDUCATION" : "EDUCACIÓN",
+    certifications: (showEnglishVersion && translatedData) ? "CERTIFICATIONS" : "CERTIFICACIONES",
+    languages: (showEnglishVersion && translatedData) ? "LANGUAGES" : "IDIOMAS",
+    references: (showEnglishVersion && translatedData) ? "REFERENCES" : "REFERENCIAS",
+    years: (showEnglishVersion && translatedData) ? "years" : "años"
   }
 
   const formatContactInfo = () => {
     const contacts: string[] = []
     
+    // Use translated data when available
+    const currentData = showEnglishVersion && translatedData ? translatedData : data
+    
     // Primero obtener country y city para manejar el formato especial
-    const countryData = data.personalInfo.contactInfo.country
-    const cityData = data.personalInfo.contactInfo.city
+    const countryData = currentData.personalInfo.contactInfo.country
+    const cityData = currentData.personalInfo.contactInfo.city
     
     // Manejar país y ciudad juntos
     if (countryData.show && countryData.value) {
@@ -98,7 +104,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     }
     
     // Procesar el resto de campos
-    Object.entries(data.personalInfo.contactInfo).forEach(([key, info]) => {
+    Object.entries(currentData.personalInfo.contactInfo).forEach(([key, info]) => {
       if (info.show && info.value && key !== "country" && key !== "city") {
         switch (key) {
           case "phone":
@@ -125,7 +131,13 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
   const handleDownload = async (language: 'spanish' | 'english') => {
     try {
-      // First check if action is allowed
+      // For English, if not already translated, translate first
+      if (language === 'english' && !showEnglishVersion) {
+        await handleTranslateToEnglish()
+        return
+      }
+
+      // For actual downloads (Spanish or already translated English)
       const actionType = language === 'english' ? 'DOWNLOAD_ENGLISH' : 'DOWNLOAD_SPANISH'
       const check = await checkAction(actionType)
       
@@ -139,7 +151,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         return
       }
       
-      // If registration is required, redirect to login
+      // If registration is required, redirect to login  
       if (!check.allowed && check.requiresRegistration) {
         signIn()
         return
@@ -151,8 +163,11 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         return
       }
 
+      // Use translated data if available
+      const dataToDownload = showEnglishVersion && translatedData ? translatedData : data
+
       // If allowed, proceed with download
-      const success = await downloadPDF(data, language)
+      const success = await downloadPDF(dataToDownload, language)
       if (success) {
         const message = language === 'english' ? 'CV downloaded successfully!' : '¡CV descargado exitosamente!'
         console.log(message)
@@ -166,14 +181,16 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     if (!pendingDownload) return
 
     try {
-      // Descargar automáticamente después del pago exitoso
-      const success = await downloadPDF(data, pendingDownload.language)
-      if (success) {
-        const message = pendingDownload.language === 'english' ? 'CV downloaded successfully!' : '¡CV descargado exitosamente!'
-        console.log(message)
-      }
+      // Para usuarios que acaban de pagar, descargar directamente el PDF
+      await generateAndDownloadPDF(data, pendingDownload.language)
+      const message = pendingDownload.language === 'english' ? 'CV downloaded successfully!' : '¡CV descargado exitosamente!'
+      console.log(message)
+      
+      // Mostrar notificación de éxito
+      alert(message)
     } catch (error) {
       console.error('Download error after payment:', error)
+      alert('Error al descargar el PDF. Por favor, intenta de nuevo.')
     } finally {
       setShowPaymentModal(false)
       setPendingDownload(null)
@@ -218,10 +235,18 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
     setShowIndividualPaymentModal(false)
     setIndividualPaymentData(null)
     
-    // Intentar descargar automáticamente después del pago exitoso
+    // Para el modal nuevo, también descargar directamente
     if (individualPaymentData) {
       const language = individualPaymentData.language === 'english' ? 'english' : 'spanish'
-      handleDownload(language)
+      generateAndDownloadPDF(data, language)
+        .then(() => {
+          const message = language === 'english' ? 'CV downloaded successfully!' : '¡CV descargado exitosamente!'
+          alert(message)
+        })
+        .catch((error) => {
+          console.error('Download error after individual payment:', error)
+          alert('Error al descargar el PDF. Por favor, intenta de nuevo.')
+        })
     }
   }
 
@@ -376,7 +401,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
   }
 
   // Create downloadPDF function with complete logic (NO action checking - only PDF generation)
-  const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english') => {
+  const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english', skipActionRecording: boolean = false) => {
     try {
       const recordFunction = language === 'english' ? recordDownloadEnglish : recordDownloadSpanish
       
@@ -385,14 +410,14 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         throw new Error('PDF generation only works in the browser')
       }
 
-      // Generate PDF using the complete logic from useDownloads
+      // Generate PDF using OPTIMIZED styling to match preview
       const { default: jsPDF } = await import('jspdf')
       const doc = new jsPDF('p', 'pt', 'a4')
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 40
       const usableWidth = pageWidth - (margin * 2)
-      let currentY = 60
+      let currentY = 50
 
       // Configure font
       doc.setFont('helvetica')
@@ -409,7 +434,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
       const headerColor = hexToRgb(cvData.headerColor)
 
-      // Function to add text with wrapping
+      // OPTIMIZED: Function to add text with better proportions
       const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = 'black', align: 'left' | 'center' | 'right' = 'left') => {
         doc.setFontSize(fontSize)
         doc.setFont('helvetica', isBold ? 'bold' : 'normal')
@@ -428,9 +453,9 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         const lines = doc.splitTextToSize(text, usableWidth)
         
         // Check if we need a new page
-        if (currentY + (lines.length * fontSize * 1.2) > pageHeight - margin) {
+        if (currentY + (lines.length * fontSize * 1.1) > pageHeight - margin) {
           doc.addPage()
-          currentY = 60
+          currentY = 50
         }
         
         let x = margin
@@ -441,21 +466,21 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         }
         
         doc.text(lines, x, currentY, { align: align })
-        currentY += lines.length * fontSize * 1.2 + 5
+        currentY += lines.length * fontSize * 1.1 + 3
       }
 
-      // Function to add section line with color
+      // OPTIMIZED: Function to add section line with better spacing
       const addSectionLine = () => {
         doc.setDrawColor(headerColor.r, headerColor.g, headerColor.b)
-        doc.setLineWidth(1)
-        doc.line(margin, currentY - 5, pageWidth - margin, currentY - 5)
-        currentY += 10
+        doc.setLineWidth(0.5)
+        doc.line(margin, currentY - 2, pageWidth - margin, currentY - 2)
+        currentY += 10  // More space after line before content (like preview)
       }
 
-      // Function to add section title
+      // OPTIMIZED: Function to add section title with better proportions
       const addSectionTitle = (title: string) => {
-        currentY += 10
-        addText(title, 14, true, 'header')
+        currentY += 6
+        addText(title, 11, true, 'header')
         addSectionLine()
       }
 
@@ -482,23 +507,23 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         years: "años"
       }
 
-      // ========== HEADER ==========
+      // ========== OPTIMIZED HEADER ==========
       const headerStartY = currentY
 
-      // Full name centered
+      // OPTIMIZED: Full name with better size
       const fullName = `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`
-      doc.setFontSize(24)
+      doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0)
       const nameWidth = doc.getTextWidth(fullName)
-      doc.text(fullName, (pageWidth - nameWidth) / 2, headerStartY + 30)
+      doc.text(fullName, (pageWidth - nameWidth) / 2, headerStartY + 25)
 
-      // Titles centered with text wrapping
+      // OPTIMIZED: Titles with better proportions
       let titleLinesCount = 0
       if (cvData.personalInfo.titles.length > 0) {
         const titlesText = cvData.personalInfo.titles.join(' | ')
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'normal')
         doc.setTextColor(85, 85, 85)
         
         const titleLines = doc.splitTextToSize(titlesText, usableWidth)
@@ -507,11 +532,11 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         titleLines.forEach((line: string, index: number) => {
           const lineWidth = doc.getTextWidth(line)
           const x = (pageWidth - lineWidth) / 2
-          doc.text(line, x, headerStartY + 55 + (index * 16))
+          doc.text(line, x, headerStartY + 45 + (index * 14))
         })
       }
 
-      // Contact info centered
+      // OPTIMIZED: Contact info with better spacing
       const contactLines: string[] = []
       
       const countryData = cvData.personalInfo.contactInfo.country
@@ -552,43 +577,46 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       if (contactLines.length > 0) {
         const contactText = contactLines.join(' | ')
         
-        doc.setFontSize(10)
+        doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(100, 100, 100)
         
         const lines = doc.splitTextToSize(contactText, usableWidth)
-        const contactStartY = headerStartY + 75 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 16 : 0)
+        const contactStartY = headerStartY + 65 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 14 : 0)
         
         lines.forEach((line: string, index: number) => {
           const lineWidth = doc.getTextWidth(line)
           const x = (pageWidth - lineWidth) / 2
-          doc.text(line, x, contactStartY + (index * 12))
+          doc.text(line, x, contactStartY + (index * 11))
         })
         
-        currentY = Math.max(currentY, contactStartY + 15 + (lines.length - 1) * 12)
+        currentY = Math.max(currentY, contactStartY + 15 + (lines.length - 1) * 11)
       } else {
-        currentY = Math.max(currentY, headerStartY + 90 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 16 : 0))
+        currentY = Math.max(currentY, headerStartY + 80 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 14 : 0))
       }
 
-      // ========== SECTIONS ==========
+      // Add double spacing after header before first section
+      currentY += 12
+
+      // ========== OPTIMIZED SECTIONS ==========
       if (cvData.summary) {
         addSectionTitle(translations.professionalSummary)
-        addText(cvData.summary, 11, false, 'gray')
-        currentY += 5
+        addText(cvData.summary, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.skills.length > 0) {
         addSectionTitle(translations.coreCompetencies)
         const skillsText = cvData.skills.map(skill => `• ${skill}`).join('  ')
-        addText(skillsText, 11, false, 'gray')
-        currentY += 5
+        addText(skillsText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.tools.length > 0) {
         addSectionTitle(translations.toolsTech)
         const toolsText = cvData.tools.map(tool => `• ${tool}`).join('  ')
-        addText(toolsText, 11, false, 'gray')
-        currentY += 5
+        addText(toolsText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.experience.enabled && cvData.experience.items.length > 0) {
@@ -596,46 +624,46 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         
         cvData.experience.items.forEach((exp, index) => {
           const jobTitle = `${exp.position} | ${exp.company}`;
-          doc.setFontSize(12)
+          doc.setFontSize(11)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(0, 0, 0)
           doc.text(jobTitle, margin, currentY)
           
           if (exp.period) {
-            doc.setFontSize(10)
+            doc.setFontSize(9)
             doc.setFont('helvetica', 'normal')
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(exp.period)
             doc.text(exp.period, pageWidth - margin - periodWidth, currentY)
           }
           
-          currentY += 18
+          currentY += 14
 
           if (exp.responsibilities.length > 0) {
             const validResponsibilities = exp.responsibilities.filter(r => r.trim())
             validResponsibilities.forEach(resp => {
-              doc.setFontSize(11)
+              doc.setFontSize(10)
               doc.setFont('helvetica', 'normal')
               doc.setTextColor(85, 85, 85)
               
               const respText = `• ${resp}`
               const lines = doc.splitTextToSize(respText, usableWidth)
               
-              if (currentY + (lines.length * 11 * 1.2) > pageHeight - margin) {
+              if (currentY + (lines.length * 10 * 1.1) > pageHeight - margin) {
                 doc.addPage()
-                currentY = 60
+                currentY = 50
               }
               
               doc.text(lines, margin, currentY)
-              currentY += lines.length * 11 * 1.2 + 2
+              currentY += lines.length * 10 * 1.1 + 1
             })
           }
           
           if (index < cvData.experience.items.length - 1) {
-            currentY += 10
+            currentY += 12  // More space between experience items
           }
         })
-        currentY += 5
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.education.length > 0) {
@@ -643,21 +671,21 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         
         cvData.education.forEach(edu => {
           const eduText = `• ${edu.level} en ${edu.degree} – ${edu.university}`
-          doc.setFontSize(11)
+          doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(85, 85, 85)
           doc.text(eduText, margin, currentY)
           
           if (edu.period) {
-            doc.setFontSize(10)
+            doc.setFontSize(9)
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(edu.period)
             doc.text(edu.period, pageWidth - margin - periodWidth, currentY)
           }
           
-          currentY += 16
+          currentY += 12
         })
-        currentY += 5
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.certifications.enabled && cvData.certifications.items.length > 0) {
@@ -665,17 +693,17 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         
         cvData.certifications.items.forEach(cert => {
           const certText = `• ${cert.name} – ${cert.institution}, ${cert.year}`
-          addText(certText, 11, false, 'gray')
-          currentY += 2
+          addText(certText, 10, false, 'gray')
+          currentY += 1
         })
-        currentY += 5
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.languages.length > 0) {
         addSectionTitle(translations.languages)
         const languagesText = cvData.languages.map(lang => `• ${lang.language}: ${lang.level}`).join('  ')
-        addText(languagesText, 11, false, 'gray')
-        currentY += 5
+        addText(languagesText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.references.enabled && cvData.references.items.length > 0) {
@@ -683,32 +711,35 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         
         cvData.references.items.forEach(ref => {
           const refText = `• ${ref.name} – ${ref.company}, ${ref.phone}`
-          addText(refText, 11, false, 'gray')
-          currentY += 2
+          addText(refText, 10, false, 'gray')
+          currentY += 1
         })
+        // No extra spacing after last section
       }
 
       // Generate filename
-      const fileName = `CV_${cvData.personalInfo.firstName}_${cvData.personalInfo.lastName}_${language}.pdf`
+      const fileName = `CV_${cvData.personalInfo.firstName}_${cvData.personalInfo.lastName}_${language}${skipActionRecording ? '_PAID' : ''}.pdf`
         .replace(/[^a-zA-Z0-9]/g, '_')
         .replace(/_+/g, '_')
 
-      // Record the action first
-      await recordFunction({
-        language,
-        fileName,
-        cvData: {
-          name: `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`,
-          titles: cvData.personalInfo.titles
-        }
-      })
+      // Record the action if needed
+      if (!skipActionRecording) {
+        await recordFunction({
+          language,
+          fileName,
+          cvData: {
+            name: `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`,
+            titles: cvData.personalInfo.titles
+          }
+        })
+      }
 
       // Download PDF
       doc.save(fileName)
       
       return true
     } catch (error) {
-      console.error('Error downloading PDF:', error)
+      console.error('Error generating PDF:', error)
       throw error
     }
   }
@@ -734,6 +765,442 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
   // Extract downloadState properties for compatibility
   const { canDownload, needsRegistration, needsPayment, downloadPrice } = downloadState
+
+  // Add translation function exactly like CVBuilder
+  const handleTranslateToEnglish = async () => {
+    if (showEnglishVersion) {
+      // If already in English, switch back to Spanish
+      setShowEnglishVersion(false)
+      setTranslatedData(null)
+      return
+    }
+
+    // Check if translation is allowed first
+    try {
+      const check = await checkAction('TRANSLATE_TO_ENGLISH')
+      
+      if (!check.allowed && check.requiresPayment && check.price) {
+        // Show payment modal for translation
+        setPendingDownload({ 
+          language: 'english', 
+          price: check.price 
+        })
+        setShowPaymentModal(true)
+        return
+      }
+      
+      if (!check.allowed && check.requiresRegistration) {
+        signIn()
+        return
+      }
+      
+      if (!check.allowed) {
+        console.error('Translation not allowed')
+        return
+      }
+
+      // Proceed with translation
+      setIsTranslating(true)
+      
+      const response = await fetch('/api/ai/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cvData: data
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al traducir el CV')
+      }
+
+      // Record the translation action for both authenticated and anonymous users
+      await recordAction('TRANSLATE_TO_ENGLISH', {
+        originalLanguage: 'spanish',
+        targetLanguage: 'english',
+        cvData: {
+          name: `${data.personalInfo.firstName} ${data.personalInfo.lastName}`,
+          titles: data.personalInfo.titles
+        }
+      })
+
+      // Set translated data and switch to English view
+      setTranslatedData(result.translatedCV)
+      setShowEnglishVersion(true)
+      console.log('✅ CV translated to English successfully!')
+      
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  // Función para generar y descargar PDF directamente después del pago (formato completo)
+  const generateAndDownloadPDF = async (cvData: CVData, language: 'spanish' | 'english') => {
+    try {
+      // Verificar que estamos en el cliente
+      if (typeof window === 'undefined') {
+        throw new Error('PDF generation only works in the browser')
+      }
+
+      // Si es inglés y no tenemos traducción, obtenerla primero
+      if (language === 'english' && !translatedData) {
+        setIsTranslating(true)
+        try {
+          const response = await fetch('/api/ai/translate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              cvData: cvData
+            }),
+          })
+
+          const result = await response.json()
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Error al traducir el CV')
+          }
+
+          setTranslatedData(result.translatedCV)
+        } catch (translationError) {
+          console.error('Translation error during paid download:', translationError)
+          // Continuar con datos originales si falla la traducción
+        } finally {
+          setIsTranslating(false)
+        }
+      }
+
+      // Generate PDF using OPTIMIZED styling to match preview
+      const { default: jsPDF } = await import('jspdf')
+      const doc = new jsPDF('p', 'pt', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 40
+      const usableWidth = pageWidth - (margin * 2)
+      let currentY = 50
+
+      // Configure font
+      doc.setFont('helvetica')
+
+      // Convert hex color to RGB for jsPDF
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 }
+      }
+
+      const headerColor = hexToRgb(cvData.headerColor)
+
+      // OPTIMIZED: Function to add text with better proportions
+      const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = 'black', align: 'left' | 'center' | 'right' = 'left') => {
+        doc.setFontSize(fontSize)
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal')
+        
+        // Set color
+        if (color === 'black') {
+          doc.setTextColor(0, 0, 0)
+        } else if (color === 'gray') {
+          doc.setTextColor(85, 85, 85)
+        } else if (color === 'lightgray') {
+          doc.setTextColor(128, 128, 128)
+        } else if (color === 'header') {
+          doc.setTextColor(headerColor.r, headerColor.g, headerColor.b)
+        }
+        
+        const lines = doc.splitTextToSize(text, usableWidth)
+        
+        // Check if we need a new page
+        if (currentY + (lines.length * fontSize * 1.1) > pageHeight - margin) {
+          doc.addPage()
+          currentY = 50
+        }
+        
+        let x = margin
+        if (align === 'center') {
+          x = pageWidth / 2
+        } else if (align === 'right') {
+          x = pageWidth - margin
+        }
+        
+        doc.text(lines, x, currentY, { align: align })
+        currentY += lines.length * fontSize * 1.1 + 3
+      }
+
+      // OPTIMIZED: Function to add section line with better spacing
+      const addSectionLine = () => {
+        doc.setDrawColor(headerColor.r, headerColor.g, headerColor.b)
+        doc.setLineWidth(0.5)
+        doc.line(margin, currentY - 2, pageWidth - margin, currentY - 2)
+        currentY += 10  // More space after line before content (like preview)
+      }
+
+      // OPTIMIZED: Function to add section title with better proportions
+      const addSectionTitle = (title: string) => {
+        currentY += 6
+        addText(title, 11, true, 'header')
+        addSectionLine()
+      }
+
+      // Determine the data to use (translated if English and available)
+      const actualData = language === 'english' && translatedData ? translatedData : cvData
+
+      // Translations based on language
+      const translations = language === 'english' ? {
+        professionalSummary: "PROFESSIONAL SUMMARY",
+        coreCompetencies: "CORE COMPETENCIES",
+        toolsTech: "TOOLS & TECHNOLOGIES",
+        professionalExperience: "PROFESSIONAL EXPERIENCE",
+        education: "EDUCATION",
+        certifications: "CERTIFICATIONS",
+        languages: "LANGUAGES",
+        references: "REFERENCES",
+        years: "years"
+      } : {
+        professionalSummary: "RESUMEN PROFESIONAL",
+        coreCompetencies: "COMPETENCIAS PRINCIPALES",
+        toolsTech: "HERRAMIENTAS & TECNOLOGÍAS",
+        professionalExperience: "EXPERIENCIA PROFESIONAL",
+        education: "EDUCACIÓN",
+        certifications: "CERTIFICACIONES",
+        languages: "IDIOMAS",
+        references: "REFERENCIAS",
+        years: "años"
+      }
+
+      // ========== OPTIMIZED HEADER ==========
+      const headerStartY = currentY
+
+      // OPTIMIZED: Full name with better size
+      const fullName = `${actualData.personalInfo.firstName} ${actualData.personalInfo.lastName}`
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      const nameWidth = doc.getTextWidth(fullName)
+      doc.text(fullName, (pageWidth - nameWidth) / 2, headerStartY + 25)
+
+      // OPTIMIZED: Titles with better proportions
+      let titleLinesCount = 0
+      if (actualData.personalInfo.titles.length > 0) {
+        const titlesText = actualData.personalInfo.titles.join(' | ')
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(85, 85, 85)
+        
+        const titleLines = doc.splitTextToSize(titlesText, usableWidth)
+        titleLinesCount = titleLines.length
+        
+        titleLines.forEach((line: string, index: number) => {
+          const lineWidth = doc.getTextWidth(line)
+          const x = (pageWidth - lineWidth) / 2
+          doc.text(line, x, headerStartY + 45 + (index * 14))
+        })
+      }
+
+      // OPTIMIZED: Contact info with better spacing
+      const contactLines: string[] = []
+      
+      const countryData = actualData.personalInfo.contactInfo.country
+      const cityData = actualData.personalInfo.contactInfo.city
+      
+      if (countryData.show && countryData.value) {
+        let locationText = countryData.value
+        if (cityData.show && cityData.value) {
+          locationText += `, ${cityData.value}`
+        }
+        contactLines.push(locationText)
+      } else if (cityData.show && cityData.value) {
+        contactLines.push(cityData.value)
+      }
+      
+      Object.entries(actualData.personalInfo.contactInfo).forEach(([key, info]) => {
+        if (info.show && info.value && key !== "country" && key !== "city") {
+          switch (key) {
+            case "phone": 
+              contactLines.push(info.value)
+              break
+            case "email": 
+              contactLines.push(info.value)
+              break
+            case "linkedin": 
+              contactLines.push(info.value)
+              break
+            case "age": 
+              contactLines.push(`${info.value} ${translations.years}`)
+              break
+            case "nationality": 
+              contactLines.push(info.value)
+              break
+          }
+        }
+      })
+
+      if (contactLines.length > 0) {
+        const contactText = contactLines.join(' | ')
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100, 100, 100)
+        
+        const lines = doc.splitTextToSize(contactText, usableWidth)
+        const contactStartY = headerStartY + 65 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 14 : 0)
+        
+        lines.forEach((line: string, index: number) => {
+          const lineWidth = doc.getTextWidth(line)
+          const x = (pageWidth - lineWidth) / 2
+          doc.text(line, x, contactStartY + (index * 11))
+        })
+        
+        currentY = Math.max(currentY, contactStartY + 15 + (lines.length - 1) * 11)
+      } else {
+        currentY = Math.max(currentY, headerStartY + 80 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 14 : 0))
+      }
+
+      // Add double spacing after header before first section
+      currentY += 12
+
+      // ========== OPTIMIZED SECTIONS ==========
+      if (actualData.summary) {
+        addSectionTitle(translations.professionalSummary)
+        addText(actualData.summary, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.skills.length > 0) {
+        addSectionTitle(translations.coreCompetencies)
+        const skillsText = actualData.skills.map(skill => `• ${skill}`).join('  ')
+        addText(skillsText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.tools.length > 0) {
+        addSectionTitle(translations.toolsTech)
+        const toolsText = actualData.tools.map(tool => `• ${tool}`).join('  ')
+        addText(toolsText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.experience.enabled && actualData.experience.items.length > 0) {
+        addSectionTitle(translations.professionalExperience)
+        
+        actualData.experience.items.forEach((exp, index) => {
+          const jobTitle = `${exp.position} | ${exp.company}`;
+          doc.setFontSize(11)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(0, 0, 0)
+          doc.text(jobTitle, margin, currentY)
+          
+          if (exp.period) {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(100, 100, 100)
+            const periodWidth = doc.getTextWidth(exp.period)
+            doc.text(exp.period, pageWidth - margin - periodWidth, currentY)
+          }
+          
+          currentY += 14
+
+          if (exp.responsibilities.length > 0) {
+            const validResponsibilities = exp.responsibilities.filter(r => r.trim())
+            validResponsibilities.forEach(resp => {
+              doc.setFontSize(10)
+              doc.setFont('helvetica', 'normal')
+              doc.setTextColor(85, 85, 85)
+              
+              const respText = `• ${resp}`
+              const lines = doc.splitTextToSize(respText, usableWidth)
+              
+              if (currentY + (lines.length * 10 * 1.1) > pageHeight - margin) {
+                doc.addPage()
+                currentY = 50
+              }
+              
+              doc.text(lines, margin, currentY)
+              currentY += lines.length * 10 * 1.1 + 1
+            })
+          }
+          
+          if (index < actualData.experience.items.length - 1) {
+            currentY += 12  // More space between experience items
+          }
+        })
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.education.length > 0) {
+        addSectionTitle(translations.education)
+        
+        actualData.education.forEach(edu => {
+          const eduText = `• ${edu.level} en ${edu.degree} – ${edu.university}`
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(85, 85, 85)
+          doc.text(eduText, margin, currentY)
+          
+          if (edu.period) {
+            doc.setFontSize(9)
+            doc.setTextColor(100, 100, 100)
+            const periodWidth = doc.getTextWidth(edu.period)
+            doc.text(edu.period, pageWidth - margin - periodWidth, currentY)
+          }
+          
+          currentY += 12
+        })
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.certifications.enabled && actualData.certifications.items.length > 0) {
+        addSectionTitle(translations.certifications)
+        
+        actualData.certifications.items.forEach(cert => {
+          const certText = `• ${cert.name} – ${cert.institution}, ${cert.year}`
+          addText(certText, 10, false, 'gray')
+          currentY += 1
+        })
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.languages.length > 0) {
+        addSectionTitle(translations.languages)
+        const languagesText = actualData.languages.map(lang => `• ${lang.language}: ${lang.level}`).join('  ')
+        addText(languagesText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
+      }
+
+      if (actualData.references.enabled && actualData.references.items.length > 0) {
+        addSectionTitle(translations.references)
+        
+        actualData.references.items.forEach(ref => {
+          const refText = `• ${ref.name} – ${ref.company}, ${ref.phone}`
+          addText(refText, 10, false, 'gray')
+          currentY += 1
+        })
+      }
+
+      // Generate filename
+      const fileName = `CV_${actualData.personalInfo.firstName}_${actualData.personalInfo.lastName}_${language}_PAID.pdf`
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+
+      // Download PDF directly - NO action recording since payment was already processed
+      doc.save(fileName)
+      
+      console.log(`✅ Paid download completed: ${fileName}`)
+      return true
+    } catch (error) {
+      console.error('Error generating PDF after payment:', error)
+      throw error
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -883,17 +1350,30 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
               <Button 
                 onClick={() => handleDownload('english')}
-                disabled={isGeneratingPDF || !isComplete}
+                disabled={isGeneratingPDF || !isComplete || isTranslating}
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-2"
+                title={
+                  !isComplete ? "CV debe estar 100% completo para traducir" :
+                  showEnglishVersion ? "Descargar PDF en inglés" :
+                  isLifetimeUser || isProUser ? "Traducir CV al inglés con IA - Acceso ilimitado" :
+                  hasFullFeatureAccess ? "Traducir CV al inglés con IA - Gratis (cuenta como 1 descarga)" :
+                  `Traducir CV al inglés con IA - $${downloadPrice || '1.99'}`
+                }
               >
-                <Download className="w-3 h-3" />
+                {isTranslating ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Download className="w-3 h-3" />
+                )}
                 <span>
-                  {!isComplete ? 'CV Incompleto' :
-                   isLifetimeUser || isProUser ? 'PDF (EN)' :
-                   hasFullFeatureAccess ? 'PDF (EN) Gratis' :
-                   `PDF (EN) $${downloadPrice || '1.99'}`}
+                  {isTranslating ? 'Traduciendo...' :
+                   !isComplete ? 'CV Incompleto' :
+                   showEnglishVersion ? 'PDF (EN)' :
+                   isLifetimeUser || isProUser ? '🤖 Traducir al Inglés' :
+                   hasFullFeatureAccess ? '🤖 Traducir al Inglés Gratis' :
+                   `🤖 Traducir al Inglés $${downloadPrice || '1.99'}`}
                 </span>
                 <Crown className="w-3 h-3 text-yellow-500" />
               </Button>
@@ -967,177 +1447,172 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       </Card>
 
       {/* CV Preview */}
-      <div className="max-w-4xl mx-auto bg-white shadow-lg">
-        <div className="p-8 space-y-6">
-          {/* Header with Photo */}
-          <div className="flex items-start space-x-6">
-            {data.personalInfo.photo.enabled && data.personalInfo.photo.url && (
-              <div className="flex-shrink-0">
-                <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-gray-200">
-                  <img
-                    src={data.personalInfo.photo.url || "/placeholder.svg"}
-                    alt="Foto de perfil"
-                    className="w-full h-full object-cover"
-                  />
+      <div className="bg-white rounded-lg shadow-sm border p-8 max-w-4xl mx-auto">
+        {/* Use translated data when available */}
+        {(() => {
+          const currentData = showEnglishVersion && translatedData ? translatedData : data
+          
+          return (
+            <>
+              {/* Header */}
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2" style={headerStyle}>
+                  {currentData.personalInfo.firstName} {currentData.personalInfo.lastName}
+                </h1>
+                {currentData.personalInfo.titles.length > 0 && (
+                  <p className="text-xl text-gray-600 mb-4">
+                    {currentData.personalInfo.titles.join(' | ')}
+                  </p>
+                )}
+                <p className="text-gray-600 text-sm">
+                  {formatContactInfo()}
+                </p>
+              </div>
+
+              {/* Professional Summary */}
+              {currentData.summary && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
+                    {translations.professionalSummary}
+                  </h3>
+                  <p className="text-gray-700">{currentData.summary}</p>
                 </div>
-              </div>
-            )}
-
-            <div className="flex-1 text-center space-y-2">
-              <h1 className="text-3xl font-bold text-gray-900">
-                {data.personalInfo.firstName} {data.personalInfo.lastName}
-              </h1>
-              {data.personalInfo.titles.length > 0 && (
-                <h2 className="text-lg font-semibold text-gray-700 break-words leading-relaxed">
-                  {data.personalInfo.titles.join(" | ")}
-                </h2>
               )}
-              {formatContactInfo() && <p className="text-sm text-gray-600">{formatContactInfo()}</p>}
-            </div>
-          </div>
 
-          {/* Professional Summary */}
-          {data.summary && (
-            <div>
-              <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-                {translations.professionalSummary}
-              </h3>
-              <p className="text-gray-700 leading-relaxed">{data.summary}</p>
-            </div>
-          )}
-
-          {/* Core Competencies */}
-          {data.skills.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-                {translations.coreCompetencies}
-              </h3>
-              <div className="text-gray-700">
-                {data.skills.map((skill, index) => (
-                  <span key={index}>
-                    • {skill}
-                    {index < data.skills.length - 1 ? " " : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tools & Technologies */}
-          {data.tools.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-                {translations.toolsTech}
-              </h3>
-              <div className="text-gray-700">
-                {data.tools.map((tool, index) => (
-                  <span key={index}>
-                    • {tool}
-                    {index < data.tools.length - 1 ? " " : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Professional Experience */}
-          {data.experience.enabled && data.experience.items && data.experience.items.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-                {translations.professionalExperience}
-              </h3>
-              <div className="space-y-4">
-                {data.experience.items.map((exp, index) => (
-                  <div key={index}>
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-semibold text-gray-900">
-                        {exp.position} | {exp.company}
-                      </h4>
-                      <span className="text-sm text-gray-600">{exp.period}</span>
-                    </div>
-                    {exp.responsibilities.length > 0 && (
-                      <ul className="text-gray-700 space-y-1">
-                        {exp.responsibilities
-                          .filter((r) => r.trim())
-                          .map((resp, respIndex) => (
-                            <li key={respIndex}>• {resp}</li>
-                          ))}
-                      </ul>
-                    )}
+              {/* Core Competencies */}
+              {currentData.skills.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
+                    {translations.coreCompetencies}
+                  </h3>
+                  <div className="text-gray-700">
+                    {currentData.skills.map((skill, index) => (
+                      <span key={index}>
+                        • {skill}
+                        {index < currentData.skills.length - 1 ? " " : ""}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Education */}
-          {data.education.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-                {translations.education}
-              </h3>
-              <div className="space-y-2">
-                {data.education.map((edu, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-gray-700">
-                      • {edu.level} en {edu.degree} – {edu.university}
-                    </span>
-                    <span className="text-sm text-gray-600">{edu.period}</span>
+              {/* Tools & Technologies */}
+              {currentData.tools.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
+                    {translations.toolsTech}
+                  </h3>
+                  <div className="text-gray-700">
+                    {currentData.tools.map((tool, index) => (
+                      <span key={index}>
+                        • {tool}
+                        {index < currentData.tools.length - 1 ? " " : ""}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Certifications */}
-          {data.certifications.enabled && data.certifications.items && data.certifications.items.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-                {translations.certifications}
-              </h3>
-              <div className="space-y-2">
-                {data.certifications.items.map((cert, index) => (
-                  <div key={index} className="text-gray-700">
-                    • {cert.name} – {cert.institution}, {cert.year}
+              {/* Professional Experience */}
+              {currentData.experience.enabled && currentData.experience.items && currentData.experience.items.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
+                    {translations.professionalExperience}
+                  </h3>
+                  <div className="space-y-4">
+                    {currentData.experience.items.map((exp, index) => (
+                      <div key={index}>
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-semibold text-gray-900">
+                            {exp.position} | {exp.company}
+                          </h4>
+                          <span className="text-sm text-gray-600">{exp.period}</span>
+                        </div>
+                        {exp.responsibilities.length > 0 && (
+                          <ul className="text-gray-700 space-y-1">
+                            {exp.responsibilities
+                              .filter((r) => r.trim())
+                              .map((resp, respIndex) => (
+                                <li key={respIndex}>• {resp}</li>
+                              ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Languages */}
-          {data.languages.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
-                {translations.languages}
-              </h3>
-              <div className="text-gray-700">
-                {data.languages.map((lang, index) => (
-                  <span key={index}>
-                    • {lang.language}: {lang.level}
-                    {index < data.languages.length - 1 ? " " : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* References */}
-          {data.references.enabled && data.references.items && data.references.items.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
-                {translations.references}
-              </h3>
-              <div className="space-y-2">
-                {data.references.items.map((ref, index) => (
-                  <div key={index} className="text-gray-700">
-                    • {ref.name} – {ref.company}, {ref.phone}
+              {/* Education */}
+              {currentData.education.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
+                    {translations.education}
+                  </h3>
+                  <div className="space-y-2">
+                    {currentData.education.map((edu, index) => (
+                      <div key={index} className="flex justify-between">
+                        <span className="text-gray-700">
+                          • {edu.level} en {edu.degree} – {edu.university}
+                        </span>
+                        <span className="text-sm text-gray-600">{edu.period}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+                </div>
+              )}
+
+              {/* Certifications */}
+              {currentData.certifications.enabled && currentData.certifications.items && currentData.certifications.items.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
+                    {translations.certifications}
+                  </h3>
+                  <div className="space-y-2">
+                    {currentData.certifications.items.map((cert, index) => (
+                      <div key={index} className="text-gray-700">
+                        • {cert.name} – {cert.institution}, {cert.year}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Languages */}
+              {currentData.languages.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-2 border-b pb-1" style={headerStyle}>
+                    {translations.languages}
+                  </h3>
+                  <div className="text-gray-700">
+                    {currentData.languages.map((lang, index) => (
+                      <span key={index}>
+                        • {lang.language}: {lang.level}
+                        {index < currentData.languages.length - 1 ? " " : ""}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* References */}
+              {currentData.references.enabled && currentData.references.items && currentData.references.items.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-3 border-b pb-1" style={headerStyle}>
+                    {translations.references}
+                  </h3>
+                  <div className="space-y-2">
+                    {currentData.references.items.map((ref, index) => (
+                      <div key={index} className="text-gray-700">
+                        • {ref.name} – {ref.company}, {ref.phone}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
 
       {/* Payment Modal for Individual Downloads */}

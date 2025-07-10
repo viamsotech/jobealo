@@ -21,6 +21,7 @@ import {
 import { CVData } from '@/components/cv-builder'
 import { useApplications } from '@/hooks/useApplications'
 import { useActions } from '@/hooks/useActions'
+import PaymentModal from '@/components/payment/payment-modal'
 
 interface ApplicationGeneratorProps {
   isOpen: boolean
@@ -68,6 +69,14 @@ export function ApplicationGenerator({
     requiresPayment: boolean
     requiresRegistration: boolean
     price: number | null
+  } | null>(null)
+
+  // Payment states
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [pendingGeneration, setPendingGeneration] = useState<{
+    jobDescription: string
+    formality: string
+    personality: string
   } | null>(null)
 
   const {
@@ -183,6 +192,69 @@ export function ApplicationGenerator({
       console.error('Error generating content:', error)
       setStep('configure')
     }
+  }
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentModal(false)
+    
+    if (!pendingGeneration) return
+
+    // After successful payment, generate the content directly
+    setStep('generate')
+
+    try {
+      const params = {
+        cvData,
+        jobDescription: pendingGeneration.jobDescription,
+        formality: pendingGeneration.formality,
+        personality: pendingGeneration.personality
+      }
+
+      // Call the actual AI function
+      let content = null
+      if (isEmail) {
+        content = await generateEmail(params)
+      } else {
+        content = await generateCoverLetter(params)
+      }
+
+      if (content) {
+        setGeneratedContent(content)
+        setEditedContent(content)
+        setStep('edit')
+
+        // Generate automatic title
+        const jobLines = pendingGeneration.jobDescription.trim().split('\n')
+        const firstLine = jobLines[0].substring(0, 50)
+        const autoTitle = isEmail 
+          ? `Email para ${firstLine}...`
+          : `Carta para ${firstLine}...`
+        setSaveTitle(autoTitle)
+
+        // Show success message
+        alert(isEmail ? '¡Email generado exitosamente!' : '¡Carta generada exitosamente!')
+      } else {
+        setStep('configure')
+      }
+    } catch (error) {
+      console.error('Error generating content after payment:', error)
+      setStep('configure')
+      alert('Error al generar el contenido. Por favor, intenta de nuevo.')
+    } finally {
+      setPendingGeneration(null)
+    }
+  }
+
+  const handleIndividualPayment = () => {
+    // Store current configuration for after payment
+    setPendingGeneration({
+      jobDescription: jobDescription.trim(),
+      formality,
+      personality
+    })
+    
+    // Show payment modal
+    setShowPaymentModal(true)
   }
 
   const handleSave = async () => {
@@ -433,10 +505,7 @@ export function ApplicationGenerator({
                               <Button
                                 size="sm"
                                 className="w-full bg-blue-600 hover:bg-blue-700"
-                                onClick={() => {
-                                  // TODO: Implement individual payment for applications
-                                  console.log('Individual payment for applications')
-                                }}
+                                onClick={handleIndividualPayment}
                               >
                                 💳 Pagar $1.99
                               </Button>
@@ -659,6 +728,18 @@ export function ApplicationGenerator({
           )}
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        individualPayment={{
+          amount: actionPrice,
+          actionType: isEmail ? 'email' : 'cover-letter',
+          description: `Generar ${isEmail ? 'email' : 'carta'} de postulación con IA`
+        }}
+      />
     </div>
   )
 } 

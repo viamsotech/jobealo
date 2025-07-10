@@ -53,15 +53,6 @@ export async function POST(request: NextRequest) {
       }, { status: 402 }) // Payment Required
     }
     
-    // If registration is required but user not provided
-    if (limitCheck.requiresRegistration && !userId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Registration required for this download',
-        ...limitCheck
-      }, { status: 401 }) // Unauthorized
-    }
-    
     // Get client IP for tracking
     const clientIP = getClientIP(request)
     

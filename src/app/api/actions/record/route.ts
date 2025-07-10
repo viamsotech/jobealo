@@ -37,6 +37,97 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Special case: Allow anonymous users to record actions in the database
+    if (!userId) {
+      // First, get or create the fingerprint record in user_fingerprints table
+      let fingerprintRecord
+      
+      try {
+        // Try to get existing fingerprint
+        const { data: existingFingerprint, error: selectError } = await supabase
+          .from('user_fingerprints')
+          .select('*')
+          .eq('fingerprint_hash', fingerprint)
+          .maybeSingle()
+
+        if (selectError) {
+          console.error('Error selecting fingerprint for recording:', selectError)
+          throw new Error('Failed to check fingerprint')
+        }
+
+        if (!existingFingerprint) {
+          // Create new fingerprint record
+          const { data: newFingerprint, error: insertError } = await supabase
+            .from('user_fingerprints')
+            .insert({
+              fingerprint_hash: fingerprint,
+              user_id: null, // Anonymous user
+              ip_address: null,
+              user_agent: null,
+              screen_resolution: null,
+              timezone: null,
+              language: null
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            console.error('Error creating fingerprint for recording:', insertError)
+            throw new Error('Failed to create fingerprint')
+          }
+
+          fingerprintRecord = newFingerprint
+          console.log('✅ Created new fingerprint record for recording action:', fingerprintRecord.id)
+        } else {
+          fingerprintRecord = existingFingerprint
+          console.log('📍 Using existing fingerprint record for recording:', fingerprintRecord.id)
+        }
+      } catch (error) {
+        console.error('Error handling fingerprint for recording:', error)
+        return NextResponse.json(
+          { error: 'Failed to handle user fingerprint' },
+          { status: 500 }
+        )
+      }
+
+      // For anonymous users, record the action directly in the database with the correct fingerprint_id
+      try {
+        const { data: actionRecord, error: insertError } = await supabase
+          .from('user_actions')
+          .insert({
+            fingerprint_id: fingerprintRecord.id, // Use the actual fingerprint ID, not the hash
+            user_id: null, // Anonymous user
+            action_type: actionType,
+            details: details || null,
+            amount_paid: amountPaid || 0,
+            stripe_payment_intent_id: stripePaymentIntentId || null,
+            stripe_session_id: stripeSessionId || null,
+            created_at: new Date().toISOString()
+          })
+          .select('id')
+          .single()
+
+        if (insertError) {
+          console.error('Error recording anonymous action:', insertError)
+          throw new Error('Failed to record action')
+        }
+
+        console.log(`✅ Recorded ${actionType} action for anonymous user with fingerprint ${fingerprintRecord.id}`)
+
+        return NextResponse.json({
+          success: true,
+          actionId: actionRecord.id,
+          message: `Action ${actionType} recorded for anonymous user`
+        })
+      } catch (error) {
+        console.error('Error recording anonymous action:', error)
+        return NextResponse.json(
+          { error: 'Failed to record anonymous action' },
+          { status: 500 }
+        )
+      }
+    }
+
     // Call the database function to record the action
     const { data, error } = await supabase
       .rpc('record_user_action', {

@@ -361,13 +361,13 @@ export function useDownloads(): UseDownloadsReturn {
         return false
       }
 
-      // Generate PDF using the same logic as usePDFDownload
+      // Generate PDF using OPTIMIZED styling to match preview
       const doc = new jsPDF('p', 'pt', 'a4')
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 40
       const usableWidth = pageWidth - (margin * 2)
-      let currentY = 60
+      let currentY = 50
 
       // Configure font
       doc.setFont('helvetica')
@@ -384,7 +384,7 @@ export function useDownloads(): UseDownloadsReturn {
 
       const headerColor = hexToRgb(cvData.headerColor)
 
-      // Function to add text with wrapping
+      // OPTIMIZED: Function to add text with better proportions
       const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = 'black', align: 'left' | 'center' | 'right' = 'left') => {
         doc.setFontSize(fontSize)
         doc.setFont('helvetica', isBold ? 'bold' : 'normal')
@@ -403,9 +403,9 @@ export function useDownloads(): UseDownloadsReturn {
         const lines = doc.splitTextToSize(text, usableWidth)
         
         // Check if we need a new page
-        if (currentY + (lines.length * fontSize * 1.2) > pageHeight - margin) {
+        if (currentY + (lines.length * fontSize * 1.1) > pageHeight - margin) {
           doc.addPage()
-          currentY = 60
+          currentY = 50
         }
         
         let x = margin
@@ -416,21 +416,21 @@ export function useDownloads(): UseDownloadsReturn {
         }
         
         doc.text(lines, x, currentY, { align: align })
-        currentY += lines.length * fontSize * 1.2 + 5
+        currentY += lines.length * fontSize * 1.1 + 3
       }
 
-      // Function to add section line with color
+      // OPTIMIZED: Function to add section line with better spacing
       const addSectionLine = () => {
         doc.setDrawColor(headerColor.r, headerColor.g, headerColor.b)
-        doc.setLineWidth(1)
-        doc.line(margin, currentY - 5, pageWidth - margin, currentY - 5)
-        currentY += 10
+        doc.setLineWidth(0.5)
+        doc.line(margin, currentY - 2, pageWidth - margin, currentY - 2)
+        currentY += 10  // More space after line before content (like preview)
       }
 
-      // Function to add section title
+      // OPTIMIZED: Function to add section title with better proportions
       const addSectionTitle = (title: string) => {
-        currentY += 10
-        addText(title, 14, true, 'header')
+        currentY += 6
+        addText(title, 11, true, 'header')
         addSectionLine()
       }
 
@@ -457,23 +457,23 @@ export function useDownloads(): UseDownloadsReturn {
         years: "años"
       }
 
-      // ========== HEADER ==========
+      // ========== OPTIMIZED HEADER ==========
       const headerStartY = currentY
 
-      // Full name centered
+      // OPTIMIZED: Full name with better size
       const fullName = `${cvData.personalInfo.firstName} ${cvData.personalInfo.lastName}`
-      doc.setFontSize(24)
+      doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0)
       const nameWidth = doc.getTextWidth(fullName)
-      doc.text(fullName, (pageWidth - nameWidth) / 2, headerStartY + 30)
+      doc.text(fullName, (pageWidth - nameWidth) / 2, headerStartY + 25)
 
-      // Titles centered with text wrapping
+      // OPTIMIZED: Titles with better proportions
       let titleLinesCount = 0
       if (cvData.personalInfo.titles.length > 0) {
         const titlesText = cvData.personalInfo.titles.join(' | ')
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'normal')
         doc.setTextColor(85, 85, 85)
         
         const titleLines = doc.splitTextToSize(titlesText, usableWidth)
@@ -482,11 +482,11 @@ export function useDownloads(): UseDownloadsReturn {
         titleLines.forEach((line: string, index: number) => {
           const lineWidth = doc.getTextWidth(line)
           const x = (pageWidth - lineWidth) / 2
-          doc.text(line, x, headerStartY + 55 + (index * 16))
+          doc.text(line, x, headerStartY + 45 + (index * 14))
         })
       }
 
-      // Contact info centered
+      // OPTIMIZED: Contact info with better spacing
       const contactLines: string[] = []
       
       const countryData = cvData.personalInfo.contactInfo.country
@@ -527,43 +527,46 @@ export function useDownloads(): UseDownloadsReturn {
       if (contactLines.length > 0) {
         const contactText = contactLines.join(' | ')
         
-        doc.setFontSize(10)
+        doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(100, 100, 100)
         
         const lines = doc.splitTextToSize(contactText, usableWidth)
-        const contactStartY = headerStartY + 75 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 16 : 0)
+        const contactStartY = headerStartY + 65 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 14 : 0)
         
         lines.forEach((line: string, index: number) => {
           const lineWidth = doc.getTextWidth(line)
           const x = (pageWidth - lineWidth) / 2
-          doc.text(line, x, contactStartY + (index * 12))
+          doc.text(line, x, contactStartY + (index * 11))
         })
         
-        currentY = Math.max(currentY, contactStartY + 15 + (lines.length - 1) * 12)
+        currentY = Math.max(currentY, contactStartY + 15 + (lines.length - 1) * 11)
       } else {
-        currentY = Math.max(currentY, headerStartY + 90 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 16 : 0))
+        currentY = Math.max(currentY, headerStartY + 80 + (titleLinesCount > 1 ? (titleLinesCount - 1) * 14 : 0))
       }
 
-      // ========== SECTIONS ==========
+      // Add double spacing after header before first section
+      currentY += 12
+
+      // ========== OPTIMIZED SECTIONS ==========
       if (cvData.summary) {
         addSectionTitle(translations.professionalSummary)
-        addText(cvData.summary, 11, false, 'gray')
-        currentY += 5
+        addText(cvData.summary, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.skills.length > 0) {
         addSectionTitle(translations.coreCompetencies)
         const skillsText = cvData.skills.map(skill => `• ${skill}`).join('  ')
-        addText(skillsText, 11, false, 'gray')
-        currentY += 5
+        addText(skillsText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.tools.length > 0) {
         addSectionTitle(translations.toolsTech)
         const toolsText = cvData.tools.map(tool => `• ${tool}`).join('  ')
-        addText(toolsText, 11, false, 'gray')
-        currentY += 5
+        addText(toolsText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.experience.enabled && cvData.experience.items.length > 0) {
@@ -571,46 +574,46 @@ export function useDownloads(): UseDownloadsReturn {
         
         cvData.experience.items.forEach((exp, index) => {
           const jobTitle = `${exp.position} | ${exp.company}`;
-          doc.setFontSize(12)
+          doc.setFontSize(11)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(0, 0, 0)
           doc.text(jobTitle, margin, currentY)
           
           if (exp.period) {
-            doc.setFontSize(10)
+            doc.setFontSize(9)
             doc.setFont('helvetica', 'normal')
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(exp.period)
             doc.text(exp.period, pageWidth - margin - periodWidth, currentY)
           }
           
-          currentY += 18
+          currentY += 14
 
           if (exp.responsibilities.length > 0) {
             const validResponsibilities = exp.responsibilities.filter(r => r.trim())
             validResponsibilities.forEach(resp => {
-              doc.setFontSize(11)
+              doc.setFontSize(10)
               doc.setFont('helvetica', 'normal')
               doc.setTextColor(85, 85, 85)
               
               const respText = `• ${resp}`
               const lines = doc.splitTextToSize(respText, usableWidth)
               
-              if (currentY + (lines.length * 11 * 1.2) > pageHeight - margin) {
+              if (currentY + (lines.length * 10 * 1.1) > pageHeight - margin) {
                 doc.addPage()
-                currentY = 60
+                currentY = 50
               }
               
               doc.text(lines, margin, currentY)
-              currentY += lines.length * 11 * 1.2 + 2
+              currentY += lines.length * 10 * 1.1 + 1
             })
           }
           
           if (index < cvData.experience.items.length - 1) {
-            currentY += 10
+            currentY += 12  // More space between experience items
           }
         })
-        currentY += 5
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.education.length > 0) {
@@ -618,21 +621,21 @@ export function useDownloads(): UseDownloadsReturn {
         
         cvData.education.forEach(edu => {
           const eduText = `• ${edu.level} en ${edu.degree} – ${edu.university}`
-          doc.setFontSize(11)
+          doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(85, 85, 85)
           doc.text(eduText, margin, currentY)
           
           if (edu.period) {
-            doc.setFontSize(10)
+            doc.setFontSize(9)
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(edu.period)
             doc.text(edu.period, pageWidth - margin - periodWidth, currentY)
           }
           
-          currentY += 16
+          currentY += 12
         })
-        currentY += 5
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.certifications.enabled && cvData.certifications.items.length > 0) {
@@ -640,17 +643,17 @@ export function useDownloads(): UseDownloadsReturn {
         
         cvData.certifications.items.forEach(cert => {
           const certText = `• ${cert.name} – ${cert.institution}, ${cert.year}`
-          addText(certText, 11, false, 'gray')
-          currentY += 2
+          addText(certText, 10, false, 'gray')
+          currentY += 1
         })
-        currentY += 5
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.languages.length > 0) {
         addSectionTitle(translations.languages)
         const languagesText = cvData.languages.map(lang => `• ${lang.language}: ${lang.level}`).join('  ')
-        addText(languagesText, 11, false, 'gray')
-        currentY += 5
+        addText(languagesText, 10, false, 'gray')
+        currentY += 8  // Double spacing like mb-6 in preview
       }
 
       if (cvData.references.enabled && cvData.references.items.length > 0) {
@@ -658,9 +661,10 @@ export function useDownloads(): UseDownloadsReturn {
         
         cvData.references.items.forEach(ref => {
           const refText = `• ${ref.name} – ${ref.company}, ${ref.phone}`
-          addText(refText, 11, false, 'gray')
-          currentY += 2
+          addText(refText, 10, false, 'gray')
+          currentY += 1
         })
+        // No extra spacing after last section
       }
 
       // Generate filename
@@ -790,4 +794,4 @@ export function useDownloads(): UseDownloadsReturn {
     checkIndividualPayment,
     checkPaidDownload
   }
-} 
+}

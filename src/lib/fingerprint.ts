@@ -57,8 +57,16 @@ export async function generateFingerprint(): Promise<BrowserFingerprint> {
     webglVendor
   ].join('|')
 
-  // Generate SHA-256 hash
-  const fingerprintHash = await generateSHA256(fingerprintData)
+  // Try to generate SHA-256 hash, fallback to simple hash if crypto.subtle not available
+  let fingerprintHash: string
+  try {
+    fingerprintHash = await generateSHA256(fingerprintData)
+    console.log('🔐 Using crypto-based fingerprint')
+  } catch (error) {
+    console.warn('crypto.subtle not available, using fallback hash:', error)
+    fingerprintHash = generateSimpleHash(fingerprintData)
+    console.log('🔧 Using fallback fingerprint')
+  }
 
   return {
     fingerprintHash,
@@ -78,6 +86,22 @@ async function generateSHA256(message: string): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   return hashHex
+}
+
+/**
+ * Generate simple hash without crypto.subtle (for HTTP environments)
+ */
+function generateSimpleHash(str: string): string {
+  let hash = 0
+  if (str.length === 0) return hash.toString()
+  
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  
+  return `fallback-${Math.abs(hash).toString(36)}`
 }
 
 /**

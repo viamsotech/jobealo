@@ -11,7 +11,8 @@ interface PaymentModalProps {
   onSuccess: () => void
   individualPayment?: {
     amount: number
-    language: string
+    language?: string  // For PDF downloads (english/spanish)
+    actionType?: string  // For AI actions (email/cover-letter/adapt-cv)
     description: string
   }
 }
@@ -27,15 +28,15 @@ export default function PaymentModal({ isOpen, planType, onClose, onSuccess, ind
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop translúcido */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+        className="absolute inset-0 bg-gray-900/80 backdrop-blur-md"
         onClick={onClose}
       />
       
       {/* Modal Content */}
-      <div className="relative z-10 w-full max-w-md mx-4">
+      <div className="relative z-10 w-full max-w-4xl mx-auto">
         <PaymentForm
           planType={planType || undefined}
           individualPayment={individualPayment}
