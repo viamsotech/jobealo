@@ -200,7 +200,7 @@ export async function improveWithAI(
       messages: [
         {
           role: 'system',
-          content: 'Eres un experto en recursos humanos. Responde ÚNICAMENTE con el contenido solicitado, sin texto explicativo adicional. No uses numeración ni bullets. Responde directamente.'
+          content: 'Eres un experto consultor de recursos humanos especializado en CVs y desarrollo profesional. Tu misión es ayudar a las personas a mejorar sus currículums y destacar su potencial profesional. Mantén un tono profesional pero cercano, y responde creativamente dentro del contexto de CVs, cartas de presentación y postulaciones laborales. Responde ÚNICAMENTE con el contenido solicitado, sin texto explicativo adicional. No uses numeración ni bullets. Si detectas una solicitud completamente fuera del contexto profesional, responde amablemente: "Me especializo en ayudarte con tu CV y postulaciones laborales. ¿En qué puedo ayudarte con tu carrera profesional?"'
         },
         {
           role: 'user',
@@ -208,7 +208,7 @@ export async function improveWithAI(
         }
       ],
       max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS || '500'),
-      temperature: 0.7,
+      temperature: 0.6,
     });
 
     const improvedContent = response.choices[0].message.content;

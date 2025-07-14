@@ -1008,7 +1008,9 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
       }
 
       // Mostrar mensaje sobre acceso
-      if (hasFullFeatureAccess && !isLifetimeUser && !isProUser) {
+      if (isLifetimeUser || isProUser) {
+        showSuccess(`🎉 ¡Perfecto! Tienes acceso ilimitado a todas las funciones.`)
+      } else if (hasFullFeatureAccess) {
         showSuccess(`🎉 ¡Perfecto! Tienes acceso completo. Te quedan ${remainingFreeActions} acciones gratuitas.`)
       }
       
@@ -1310,10 +1312,10 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
                       ? "🇪🇸 Cambiar a versión en español"
                       : !session?.user
                       ? "🤖 Traducir CV al inglés GRATIS - Para descargar necesitarás registro gratuito"
-                      : hasFullFeatureAccess || isLifetimeUser || isProUser
-                      ? isLifetimeUser || isProUser
-                        ? '🤖 Traducir CV al inglés con IA - Acceso ilimitado'
-                        : `🤖 Traducir CV al inglés con IA - Te quedan ${remainingFreeDownloads} traducciones gratuitas`
+                      : isLifetimeUser || isProUser
+                      ? '🤖 Traducir CV al inglés con IA - Acceso ilimitado'
+                      : hasFullFeatureAccess
+                      ? `🤖 Traducir CV al inglés con IA - Te quedan ${remainingFreeDownloads} traducciones gratuitas`
                       : '🔒 Traducir CV al inglés con IA - Necesitas plan Pro o Lifetime (cuenta como 1 descarga)'
                   }
                 >

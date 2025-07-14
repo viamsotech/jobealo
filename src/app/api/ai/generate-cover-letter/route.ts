@@ -28,6 +28,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validación suave de contenido - detectar queries obviamente fuera de contexto
+    const suspiciousPatterns = [
+      /ignora.{0,15}instrucciones/i,
+      /actúa como si fueras/i,
+      /olvida.{0,15}anterior/i,
+      /responde.{0,15}como.{0,15}si/i,
+      /hombre.{0,15}luna/i,
+      /poema|canción|historia|chiste/i,
+      /matemáticas|física|química|biología/i
+    ];
+
+    const containsSuspiciousContent = suspiciousPatterns.some(pattern => 
+      pattern.test(jobDescription.toLowerCase())
+    );
+
+    if (containsSuspiciousContent) {
+      return NextResponse.json(
+        { error: 'La descripción del trabajo debe estar relacionada con oportunidades laborales reales. Te ayudo con CVs y postulaciones profesionales.' },
+        { status: 400 }
+      )
+    }
+
     // Validate CV data has minimum required fields
     if (!cvData.personalInfo?.firstName || !cvData.personalInfo?.lastName) {
       return NextResponse.json(
@@ -148,6 +170,7 @@ INSTRUCCIONES IMPORTANTES:
 7. La carta debe estar en español
 8. Máximo 400 palabras
 9. Estructura profesional de carta formal
+10. ENFÓCATE ÚNICAMENTE en crear una carta de presentación profesional
 
 FORMATO ESPERADO:
 [Nombre completo]
@@ -176,7 +199,7 @@ Genera la carta ahora:`
       messages: [
         {
           role: "system",
-          content: "Eres un experto en redacción de cartas de presentación profesionales. Siempre generas cartas formales, personalizadas y persuasivas basándote únicamente en la información proporcionada."
+          content: "Eres un experto consultor en comunicación profesional especializado en cartas de presentación. Tu misión es ayudar a las personas a destacar profesionalmente y conseguir oportunidades laborales. Mantén un tono profesional pero cercano, y genera cartas formales, personalizadas y persuasivas basándote únicamente en la información proporcionada. Solo trabajas con temas relacionados a CVs, postulaciones laborales y desarrollo profesional."
         },
         {
           role: "user", 
@@ -184,7 +207,7 @@ Genera la carta ahora:`
         }
       ],
       max_tokens: 1000,
-      temperature: 0.7,
+      temperature: 0.6,
     })
 
     const generatedCoverLetter = completion.choices[0]?.message?.content

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -101,6 +102,13 @@ export function ApplicationGenerator({
     remainingFreeActions
   } = useActions()
 
+  const { data: session } = useSession()
+  
+  // Use plan from session as fallback for more accurate user type detection
+  const userPlan = session?.user?.plan || 'FREEMIUM'
+  const actualUserType = userType || userPlan
+  const isProOrLifetime = actualUserType === 'PRO' || actualUserType === 'LIFETIME'
+  
   const isEmail = type === 'email'
   const title = isEmail ? 'Generar Email de Postulación' : 'Generar Carta de Presentación'
   const Icon = isEmail ? Mail : FileSpreadsheet
@@ -344,12 +352,12 @@ export function ApplicationGenerator({
                     Requiere registro
                   </Badge>
                 )}
-                {canUseFeature && hasFullAccess && !['LIFETIME', 'PRO'].includes(userType) && (
+                {canUseFeature && hasFullAccess && !isProOrLifetime && (
                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                    {remainingFreeActions} acciones restantes
+                    {remainingFreeActions > 0 ? `${remainingFreeActions} acciones restantes` : 'Sin acciones restantes'}
                   </Badge>
                 )}
-                {canUseFeature && ['LIFETIME', 'PRO'].includes(userType) && (
+                {canUseFeature && isProOrLifetime && (
                   <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                     Acceso ilimitado
                   </Badge>

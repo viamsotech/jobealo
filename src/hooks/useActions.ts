@@ -150,18 +150,21 @@ export function useActions() {
     
     if (!userIdentifier) {
       console.warn('No user identifier available for stats, using defaults')
+      const userPlan = session?.user?.plan || 'FREEMIUM'
+      const isProOrLifetime = userPlan === 'PRO' || userPlan === 'LIFETIME'
+      
       const defaultStats: UserActionStatus = {
         stats: {
           totalActions: 0,
           freeActionsUsed: 0,
-          freeActionLimit: 3,
+          freeActionLimit: isProOrLifetime ? -1 : 3,
           paidActions: 0,
-          plan: 'FREEMIUM',
+          plan: userPlan,
           memberSince: null
         },
-        hasFullAccess: false,
-        remainingFreeActions: 3,
-        userType: 'ANONYMOUS'
+        hasFullAccess: isProOrLifetime,
+        remainingFreeActions: isProOrLifetime ? -1 : 3,
+        userType: isProOrLifetime ? userPlan : 'ANONYMOUS'
       }
       setUserStats(defaultStats)
       return defaultStats
@@ -194,18 +197,21 @@ export function useActions() {
       console.warn('Failed to fetch stats, using defaults:', errorMessage)
       
       // Return safe defaults instead of throwing
+      const userPlan = session?.user?.plan || 'FREEMIUM'
+      const isProOrLifetime = userPlan === 'PRO' || userPlan === 'LIFETIME'
+      
       const defaultStats: UserActionStatus = {
         stats: {
           totalActions: 0,
           freeActionsUsed: 0,
-          freeActionLimit: 3,
+          freeActionLimit: isProOrLifetime ? -1 : 3,
           paidActions: 0,
-          plan: session?.user ? 'FREEMIUM' : 'ANONYMOUS',
+          plan: userPlan,
           memberSince: null
         },
-        hasFullAccess: false,
-        remainingFreeActions: 3,
-        userType: session?.user ? 'FREEMIUM' : 'ANONYMOUS'
+        hasFullAccess: isProOrLifetime,
+        remainingFreeActions: isProOrLifetime ? -1 : 3,
+        userType: isProOrLifetime ? userPlan : (session?.user ? 'FREEMIUM' : 'ANONYMOUS')
       }
       setUserStats(defaultStats)
       return defaultStats

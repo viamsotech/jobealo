@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { Hero } from "@/components/hero"
 import Features from "@/components/features"
+import { AITools } from "@/components/ai-tools"
 import { Testimonials } from "@/components/testimonials"
 import Pricing from "@/components/pricing"
 import { FAQ } from "@/components/faq"
@@ -18,6 +19,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col">
       <Hero onStartBuilder={handleStartBuilder} />
       <Features />
+      <AITools />
       <Testimonials />
       <Pricing />
       <FAQ />

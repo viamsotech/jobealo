@@ -39,6 +39,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validación suave de contenido - detectar queries obviamente fuera de contexto
+    const contentText = Array.isArray(content) ? content.join(' ') : content;
+    const suspiciousPatterns = [
+      /ignora.{0,15}instrucciones/i,
+      /actúa como si fueras/i,
+      /olvida.{0,15}anterior/i,
+      /responde.{0,15}como.{0,15}si/i,
+      /hombre.{0,15}luna/i,
+      /poema|canción|historia|chiste/i,
+      /matemáticas|física|química|biología/i
+    ];
+
+    const containsSuspiciousContent = suspiciousPatterns.some(pattern => 
+      pattern.test(contentText.toLowerCase())
+    );
+
+    if (containsSuspiciousContent) {
+      return NextResponse.json(
+        { error: 'El contenido debe estar relacionado con información profesional de CVs. Te ayudo con currículums y postulaciones laborales.' },
+        { status: 400 }
+      );
+    }
+
     // Llamar a OpenAI para mejorar el contenido
     const improvedContent = await improveWithAI(type, content, context);
 
@@ -50,34 +73,34 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error en API de mejora con IA:', error);
+    console.error('Error en API de mejora:', error);
 
     // Manejar diferentes tipos de errores
     const errorMessage = error instanceof Error ? error.message : String(error);
     
     if (errorMessage.includes('API key')) {
       return NextResponse.json(
-        { error: 'Configuración de OpenAI incorrecta' },
+        { error: 'OpenAI configuration error' },
         { status: 500 }
       );
     }
 
     if (errorMessage.includes('quota') || errorMessage.includes('billing')) {
       return NextResponse.json(
-        { error: 'Límite de uso de OpenAI alcanzado' },
+        { error: 'OpenAI usage limit reached' },
         { status: 429 }
       );
     }
 
     if (errorMessage.includes('rate limit')) {
       return NextResponse.json(
-        { error: 'Muchas solicitudes, intenta en unos momentos' },
+        { error: 'Too many requests, please try again in a moment' },
         { status: 429 }
       );
     }
 
     return NextResponse.json(
-      { error: 'Error interno del servidor al procesar la solicitud' },
+      { error: 'Internal server error while improving content' },
       { status: 500 }
     );
   }

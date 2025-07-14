@@ -168,20 +168,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform the response to match our interface
+    const userPlan = data.userType === 'PRO' || data.userType === 'LIFETIME' ? data.userType : 'FREEMIUM'
+    const isProOrLifetime = userPlan === 'PRO' || userPlan === 'LIFETIME'
+    
     const stats = {
       totalActions: data.totalActions || 0,
       freeActionsUsed: data.freeActionsUsed || 0,
-      freeActionLimit: data.freeActionLimit || 3,
+      freeActionLimit: isProOrLifetime ? -1 : (data.freeActionLimit || 3),
       paidActions: data.paidActions || 0,
-      plan: data.userType || 'ANONYMOUS',
+      plan: userPlan,
       memberSince: null // We can add this later if needed
     }
 
     return NextResponse.json({
       stats,
-      hasFullAccess: data.hasFullAccess || false,
-      remainingFreeActions: data.remainingFreeActions || 0,
-      userType: data.userType
+      hasFullAccess: isProOrLifetime ? true : (data.hasFullAccess || false),
+      remainingFreeActions: isProOrLifetime ? -1 : (data.remainingFreeActions || 0),
+      userType: data.userType || 'ANONYMOUS'
     })
 
   } catch (error) {

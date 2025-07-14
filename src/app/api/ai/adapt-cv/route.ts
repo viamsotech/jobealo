@@ -40,6 +40,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validación suave de contenido - detectar queries obviamente fuera de contexto
+    const suspiciousPatterns = [
+      /ignora.{0,15}instrucciones/i,
+      /actúa como si fueras/i,
+      /olvida.{0,15}anterior/i,
+      /responde.{0,15}como.{0,15}si/i,
+      /hombre.{0,15}luna/i,
+      /poema|canción|historia|chiste/i,
+      /matemáticas|física|química|biología/i
+    ];
+
+    const containsSuspiciousContent = suspiciousPatterns.some(pattern => 
+      pattern.test(jobDescription.toLowerCase())
+    );
+
+    if (containsSuspiciousContent) {
+      return NextResponse.json(
+        { error: 'La descripción del trabajo debe estar relacionada con oportunidades laborales reales. Te ayudo con CVs y postulaciones profesionales.' },
+        { status: 400 }
+      )
+    }
+
     // Validate CV data has minimum required fields
     if (!cvData.personalInfo?.firstName || !cvData.personalInfo?.lastName) {
       console.log('❌ CV validation failed - missing personal info')
@@ -62,6 +84,7 @@ REGLAS FUNDAMENTALES:
 3. NO cambies fechas, nombres de empresas, cargos o datos factuales
 4. SOLO modifica la redacción y presentación de la información existente
 5. Mantén la estructura y formato JSON exacto del CV original
+6. ENFÓCATE ÚNICAMENTE en adaptar el CV para esta oportunidad laboral específica
 
 ANÁLISIS DE LA VACANTE:
 ${jobDescription}
@@ -109,7 +132,7 @@ El CV adaptado debe verse natural y profesional, como si hubiera sido escrito es
       messages: [
         {
           role: "system",
-          content: "Eres un experto en optimización de CVs. Adaptas CVs existentes para vacantes específicas sin inventar información falsa. Siempre devuelves JSON válido en el mismo formato que recibes."
+          content: "Eres un experto consultor en optimización de CVs especializado en adaptar currículums para oportunidades laborales específicas. Tu misión es ayudar a las personas a destacar profesionalmente ajustando la presentación de su experiencia real. Mantén un enfoque profesional pero cercano, adaptando CVs existentes para vacantes específicas sin inventar información falsa. Solo trabajas con temas relacionados a CVs, postulaciones laborales y desarrollo profesional. Siempre devuelves JSON válido en el mismo formato que recibes."
         },
         {
           role: "user", 
@@ -117,7 +140,7 @@ El CV adaptado debe verse natural y profesional, como si hubiera sido escrito es
         }
       ],
       max_tokens: 4000,
-      temperature: 0.3, // Lower temperature for more consistent output
+      temperature: 0.5, // Slightly lower for more consistent JSON output
     })
 
     let adaptedCVData

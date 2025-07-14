@@ -28,6 +28,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validación suave de contenido - detectar queries obviamente fuera de contexto
+    const suspiciousPatterns = [
+      /ignora.{0,15}instrucciones/i,
+      /actúa como si fueras/i,
+      /olvida.{0,15}anterior/i,
+      /responde.{0,15}como.{0,15}si/i,
+      /hombre.{0,15}luna/i,
+      /poema|canción|historia|chiste/i,
+      /matemáticas|física|química|biología/i
+    ];
+
+    const containsSuspiciousContent = suspiciousPatterns.some(pattern => 
+      pattern.test(jobDescription.toLowerCase())
+    );
+
+    if (containsSuspiciousContent) {
+      return NextResponse.json(
+        { error: 'La descripción del trabajo debe estar relacionada con oportunidades laborales reales. Te ayudo con CVs y postulaciones profesionales.' },
+        { status: 400 }
+      )
+    }
+
     // Validate CV data has minimum required fields
     if (!cvData.personalInfo?.firstName || !cvData.personalInfo?.lastName) {
       return NextResponse.json(
@@ -133,6 +155,7 @@ INSTRUCCIONES IMPORTANTES:
 7. El email debe estar en español
 8. Máximo 300 palabras
 9. Incluye un asunto atractivo
+10. ENFÓCATE ÚNICAMENTE en crear un email de postulación profesional
 
 FORMATO ESPERADO:
 Asunto: [Asunto del email]
@@ -152,7 +175,7 @@ Genera el email ahora:`
       messages: [
         {
           role: "system",
-          content: "Eres un experto en redacción de emails de postulación laboral. Siempre generas emails profesionales, personalizados y persuasivos basándote únicamente en la información proporcionada."
+          content: "Eres un experto consultor en comunicación profesional especializado en emails de postulación laboral. Tu misión es ayudar a las personas a destacar profesionalmente y conseguir oportunidades laborales. Mantén un tono profesional pero cercano, y genera emails persuasivos y personalizados basándote únicamente en la información proporcionada. Solo trabajas con temas relacionados a CVs, postulaciones laborales y desarrollo profesional."
         },
         {
           role: "user", 
@@ -160,7 +183,7 @@ Genera el email ahora:`
         }
       ],
       max_tokens: 800,
-      temperature: 0.7,
+      temperature: 0.6,
     })
 
     const generatedEmail = completion.choices[0]?.message?.content

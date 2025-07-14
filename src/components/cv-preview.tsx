@@ -296,6 +296,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       )
     }
 
+    // Pro and Lifetime users - show unlimited access only
     if (isLifetimeUser || isProUser) {
       return (
         <div className="flex items-center justify-between">
@@ -308,25 +309,8 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       )
     }
 
-    if (isAuthenticated && userStats && userStats.stats.totalActions > 0 && !isLifetimeUser && !isProUser && (
-      hasFullFeatureAccess ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-blue-800">
-            <CheckCircle className="w-4 h-4" />
-            Plan Freemium - Acceso completo hasta 3 descargas - {remainingFreeDownloads} restantes
-          </div>
-          {getPlanBadge()}
-        </div>
-      ) : (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-orange-600">
-            <AlertCircle className="w-4 h-4" />
-            Acceso completo agotado - Necesitas plan Pro o Lifetime
-          </div>
-          {getPlanBadge()}
-        </div>
-      )
-    )) {
+    // Authenticated freemium users with access
+    if (isAuthenticated && hasFullFeatureAccess) {
       return (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-blue-800">
@@ -338,22 +322,37 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       )
     }
 
-    if (!isAuthenticated) {
-      if (hasFullFeatureAccess) {
-        return (
-          <div className="flex items-center gap-2 text-green-600">
-            <CheckCircle className="w-4 h-4" />
-            Acceso completo hasta 2 descargas - {remainingFreeDownloads} restantes
-          </div>
-        )
-      } else {
-        return (
+    // Authenticated users without access
+    if (isAuthenticated && !hasFullFeatureAccess) {
+      return (
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-orange-600">
             <AlertCircle className="w-4 h-4" />
-            Usuario anónimo - Acceso completo agotado
+            Acceso completo agotado - Necesitas plan Pro o Lifetime
           </div>
-        )
-      }
+          {getPlanBadge()}
+        </div>
+      )
+    }
+
+    // Anonymous users with access
+    if (!isAuthenticated && hasFullFeatureAccess) {
+      return (
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle className="w-4 h-4" />
+          Acceso completo hasta 2 descargas - {remainingFreeDownloads} restantes
+        </div>
+      )
+    }
+
+    // Anonymous users without access
+    if (!isAuthenticated && !hasFullFeatureAccess) {
+      return (
+        <div className="flex items-center gap-2 text-orange-600">
+          <AlertCircle className="w-4 h-4" />
+          Usuario anónimo - Acceso completo agotado
+        </div>
+      )
     }
 
     return null
