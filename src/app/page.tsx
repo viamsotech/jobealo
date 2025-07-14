@@ -1,33 +1,26 @@
 "use client"
 
-import { useState } from "react"
-import { Header } from "@/components/header"
+import { useRouter } from "next/navigation"
 import { Hero } from "@/components/hero"
 import Features from "@/components/features"
-import { AITools } from "@/components/ai-tools"
-import Pricing from "@/components/pricing"
 import { Testimonials } from "@/components/testimonials"
+import Pricing from "@/components/pricing"
 import { FAQ } from "@/components/faq"
-import { Footer } from "@/components/footer"
-import { CVBuilder } from "@/components/cv-builder"
 
-export default function HomePage() {
-  const [showBuilder, setShowBuilder] = useState(false)
+export default function Home() {
+  const router = useRouter()
 
-  if (showBuilder) {
-    return <CVBuilder onBack={() => setShowBuilder(false)} />
+  const handleStartBuilder = () => {
+    router.push("/cvs")
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header onStartBuilder={() => setShowBuilder(true)} />
-      <Hero onStartBuilder={() => setShowBuilder(true)} />
+    <main className="flex min-h-screen flex-col">
+      <Hero onStartBuilder={handleStartBuilder} />
       <Features />
-      <AITools onStartBuilder={() => setShowBuilder(true)} />
+      <Testimonials />
       <Pricing />
-      <Testimonials onStartBuilder={() => setShowBuilder(true)} />
       <FAQ />
-      <Footer />
-    </div>
+    </main>
   )
-}
+} 
