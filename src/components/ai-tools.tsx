@@ -45,7 +45,7 @@ const aiTools = [
 
 export function AITools({ onStartBuilder }: AIToolsProps) {
   return (
-    <section className="py-20 bg-gradient-to-br from-slate-50 to-gray-100">
+    <section id="herramientas" className="py-20 bg-gradient-to-br from-slate-50 to-gray-100">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-16">

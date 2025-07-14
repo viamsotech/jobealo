@@ -19,8 +19,8 @@ export default function Home() {
     <main className="flex min-h-screen flex-col">
       <Hero onStartBuilder={handleStartBuilder} />
       <Features />
-      <AITools />
-      <Testimonials />
+      <AITools onStartBuilder={handleStartBuilder} />
+      <Testimonials onStartBuilder={handleStartBuilder} />
       <Pricing />
       <FAQ />
     </main>

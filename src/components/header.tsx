@@ -38,6 +38,10 @@ export function Header({ onStartBuilder }: HeaderProps) {
     closeMenu()
   }
 
+  const handleLogoClick = () => {
+    router.push('/')
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
@@ -49,7 +53,8 @@ export function Header({ onStartBuilder }: HeaderProps) {
               alt="Jobealo"
               width={140}
               height={35}
-              className="md:w-[180px] md:h-[45px]"
+              className="md:w-[180px] md:h-[45px] cursor-pointer"
+              onClick={handleLogoClick}
             />
           </div>
 

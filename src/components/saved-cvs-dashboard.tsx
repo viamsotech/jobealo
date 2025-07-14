@@ -314,19 +314,89 @@ export function SavedCVsDashboard({ onSelectCV, onCreateNew, onPreviewCV }: Save
   // If user is not authenticated
   if (!session) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <User className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <CardTitle>Inicia sesión para guardar CVs</CardTitle>
-            <CardDescription>
-              Regístrate gratis para guardar, editar y gestionar múltiples CVs
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => signIn()} className="w-full">
-              Iniciar Sesión
+      <div className="space-y-6">
+        {/* Header para usuarios anónimos */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Crear CV Gratis</h2>
+            <p className="text-gray-600">Crea y descarga tu CV profesional sin registrarte</p>
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={onCreateNew} className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Crear Nuevo CV
             </Button>
+          </div>
+        </div>
+
+        {/* Información sobre descargas gratuitas */}
+        <Card className="border-2 border-blue-200 bg-blue-50">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-lg bg-blue-100">
+                  <CheckCircle className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    ¡Gratis sin registro!
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Crea y descarga hasta 3 CVs sin necesidad de crear cuenta
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Para acceso ilimitado:</p>
+                <Button
+                  onClick={() => signIn()}
+                  variant="outline"
+                  size="sm"
+                  className="mt-1"
+                >
+                  Registrarse Gratis
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Beneficios de registrarse */}
+        <Card className="border-gray-200">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              ¿Por qué registrarse?
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Guardar CVs</p>
+                  <p className="text-sm text-gray-600">Edita y gestiona múltiples CVs</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Historial de descargas</p>
+                  <p className="text-sm text-gray-600">Accede a tus CVs previamente creados</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Funciones IA</p>
+                  <p className="text-sm text-gray-600">Emails y cartas de presentación</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Traducción automática</p>
+                  <p className="text-sm text-gray-600">CV en español e inglés</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

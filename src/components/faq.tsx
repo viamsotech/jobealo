@@ -55,7 +55,7 @@ export function FAQ() {
   }
 
   return (
-    <section className="py-20 bg-gray-50">
+    <section id="faq" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-16">
@@ -112,7 +112,10 @@ export function FAQ() {
             <p className="text-gray-600 mb-6">
               Nuestro equipo está aquí para ayudarte. Contáctanos y te responderemos lo antes posible.
             </p>
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl">
+            <button 
+              onClick={() => window.location.href = 'mailto:soporte@jobealo.com'}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
               Contactar Soporte
             </button>
           </div>

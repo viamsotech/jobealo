@@ -20,18 +20,18 @@ export function Footer() {
             <h3 className="font-semibold">Producto</h3>
             <ul className="space-y-2 text-gray-400">
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/cvs" className="hover:text-white transition-colors">
                   Constructor de CV
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
-                  Plantillas
+                <a href="/#pricing" className="hover:text-white transition-colors">
+                  Precios
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
-                  Ejemplos
+                <a href="/#herramientas" className="hover:text-white transition-colors">
+                  Herramientas
                 </a>
               </li>
             </ul>
@@ -41,17 +41,7 @@ export function Footer() {
             <h3 className="font-semibold">Soporte</h3>
             <ul className="space-y-2 text-gray-400">
               <li>
-                <a href="#" className="hover:text-white transition-colors">
-                  Centro de Ayuda
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">
-                  Contacto
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/#faq" className="hover:text-white transition-colors">
                   FAQ
                 </a>
               </li>
@@ -62,7 +52,6 @@ export function Footer() {
             <h3 className="font-semibold">Contacto</h3>
             <ul className="space-y-2 text-gray-400">
               <li>soporte@jobealo.com</li>
-              <li>+1 (555) 123-4567</li>
             </ul>
           </div>
         </div>
