@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all CVs for the user
-    const { data: cvs, error } = await supabase
+    const { data: cvs, error } = await supabaseAdmin
       .from('saved_cvs')
       .select('*')
       .eq('user_id', session.user.id)
