@@ -402,7 +402,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
   // Create downloadPDF function with complete logic (NO action checking - only PDF generation)
   const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english', skipActionRecording: boolean = false) => {
     try {
-      console.log('🔥 REAL PDF Download Started - cv-preview.tsx - FINE-TUNED VERSION with optimal title/line spacing')
+      console.log('🔥 REAL PDF Download Started - cv-preview.tsx - ATS-FRIENDLY VERSION with optimal spacing')
       const recordFunction = language === 'english' ? recordDownloadEnglish : recordDownloadSpanish
       
       // Verificar que estamos en el cliente
@@ -659,20 +659,14 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
             currentY = 50
           }
           
-          // Now add the job content (we know it fits)
-          const jobTitle = `${exp.position} | ${exp.company}`;
-          addText(jobTitle, 11, true, 'black')
-          
+          // ATS-FRIENDLY FORMAT: Linear job information
+          let jobTitle = exp.position
           if (exp.period) {
-            // Position period on the right side, accounting for the improved spacing
-            currentY -= 14 // Reduced from 20 to 14 - go back to align with job title
-            doc.setFontSize(9)
-            doc.setFont('helvetica', 'normal')
-            doc.setTextColor(100, 100, 100)
-            const periodWidth = doc.getTextWidth(exp.period)
-            doc.text(exp.period, pageWidth - margin - periodWidth, currentY)
-            currentY += 16 // Reduced from 22 to 16 - moderate spacing
+            jobTitle += ` (${exp.period})`
           }
+          jobTitle += `\n${exp.company}`
+          
+          addText(jobTitle, 11, true, 'black')
 
           if (exp.responsibilities.length > 0) {
             const validResponsibilities = exp.responsibilities.filter(r => r.trim())
@@ -696,20 +690,16 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         addSectionTitle(translations.education)
         
         cvData.education.forEach(edu => {
-          const eduText = `• ${edu.level} en ${edu.degree} – ${edu.university}`
-          
-          // Use addText for consistent spacing
-          addText(eduText, 10, false, 'gray')
-          
+          // ATS-FRIENDLY FORMAT: All information in linear text format
+          let eduText = `• ${edu.level} en ${edu.degree}`
           if (edu.period) {
-            // Position period on the right side, accounting for the improved spacing
-            currentY -= 12 // Reduced from 18 to 12 - go back to align with education text
-            doc.setFontSize(9)
-            doc.setTextColor(100, 100, 100)
-            const periodWidth = doc.getTextWidth(edu.period)
-            doc.text(edu.period, pageWidth - margin - periodWidth, currentY)
-            currentY += 14 // Reduced from 20 to 14 - moderate spacing
+            eduText += ` (${edu.period})`
           }
+          eduText += `\n  ${edu.university}`
+          
+          // Use addText for consistent spacing - fully linear, no manual positioning
+          addText(eduText, 10, false, 'gray')
+          currentY += 2 // Small extra spacing between education items
         })
         currentY += 8  // Double spacing like mb-6 in preview
       }
@@ -767,7 +757,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       }
 
       // Download PDF
-      console.log('✅ REAL PDF Generated successfully with OPTIMAL title/line spacing and smart pagination - cv-preview.tsx')
+      console.log('✅ REAL PDF Generated successfully - ATS-FRIENDLY format with optimal spacing and smart pagination')
       doc.save(fileName)
       
       return true
