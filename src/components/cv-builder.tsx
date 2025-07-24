@@ -47,10 +47,6 @@ export interface CVData {
     firstName: string
     lastName: string
     titles: string[]
-    photo: {
-      enabled: boolean
-      url: string
-    }
     contactInfo: {
       country: { value: string; show: boolean }
       city: { value: string; show: boolean }
@@ -108,10 +104,6 @@ const initialCVData: CVData = {
     firstName: "",
     lastName: "",
     titles: [],
-    photo: {
-      enabled: false,
-      url: "",
-    },
     contactInfo: {
       country: { value: "", show: true },
       city: { value: "", show: true },

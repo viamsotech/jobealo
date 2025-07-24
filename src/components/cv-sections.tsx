@@ -8,9 +8,9 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, X, Sparkles, ChevronRight, ChevronLeft, Upload, AlertCircle, Loader2, Lightbulb, Eye } from "lucide-react"
+import { Plus, X, Sparkles, ChevronRight, ChevronLeft, AlertCircle, Loader2, Lightbulb, Eye } from "lucide-react"
 import type { CVData } from "@/components/cv-builder"
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { useAI, useAINotifications } from "@/hooks/useAI"
 
 interface CVSectionsProps {
@@ -73,38 +73,7 @@ export function CVSections({
     updateCVData(section, current.filter((_, i) => i !== index))
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona un archivo de imagen válido')
-        return
-      }
-      
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('El archivo es muy grande. Por favor selecciona un archivo menor a 5MB')
-        return
-      }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string
-        updateCVData("personalInfo", {
-          ...cvData.personalInfo,
-          photo: {
-            ...cvData.personalInfo.photo,
-            url: imageUrl,
-            enabled: true
-          },
-        })
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Funciones para mejorar con IA
   const handleImproveTitles = async () => {
@@ -404,100 +373,7 @@ export function CVSections({
                 </div>
               </div>
 
-              {/* Photo Section */}
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-4">
-                                      <div className="flex items-center space-x-2">
-                      <Label className="text-base font-medium">Foto de Perfil</Label>
-                      <div className="group relative inline-block">
-                        <AlertCircle className="w-4 h-4 text-amber-500 cursor-help" />
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 w-80">
-                          <div className="text-center">
-                            <span className="block font-semibold text-amber-300 mb-1">⚠️ Recomendación Jobealo</span>
-                            <span className="block">NO incluir fotos en tu CV. Las mejores prácticas de reclutamiento sugieren CVs sin fotos para evitar sesgos inconscientes y enfocarse en tus habilidades y experiencia.</span>
-                          </div>
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                        </div>
-                      </div>
-                    </div>
-                  <Switch
-                    checked={cvData.personalInfo.photo.enabled}
-                    onCheckedChange={(checked) => {
-                      updateCVData("personalInfo", {
-                        ...cvData.personalInfo,
-                        photo: {
-                          ...cvData.personalInfo.photo,
-                          enabled: checked,
-                        },
-                      })
-                    }}
-                  />
-                </div>
 
-                {cvData.personalInfo.photo.enabled && (
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-4">
-                      {cvData.personalInfo.photo.url && (
-                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
-                          <img
-                            src={cvData.personalInfo.photo.url || "/placeholder.svg"}
-                            alt="Foto de perfil"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <Label htmlFor="photoUrl">URL de la foto</Label>
-                          <Input
-                            id="photoUrl"
-                            placeholder="https://ejemplo.com/mi-foto.jpg"
-                            value={cvData.personalInfo.photo.url}
-                            onChange={(e) =>
-                              updateCVData("personalInfo", {
-                                ...cvData.personalInfo,
-                                photo: {
-                                  ...cvData.personalInfo.photo,
-                                  url: e.target.value,
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <div className="flex-1 border-t border-gray-200"></div>
-                          <span className="text-xs text-gray-500 bg-white px-2">O</span>
-                          <div className="flex-1 border-t border-gray-200"></div>
-                        </div>
-
-                        <div>
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileUpload}
-                            accept="image/*"
-                            className="hidden"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-full flex items-center justify-center space-x-2"
-                          >
-                            <Upload className="w-4 h-4" />
-                            <span>Subir desde dispositivo</span>
-                          </Button>
-                        </div>
-                        
-                        <p className="text-xs text-gray-500">
-                          Recomendado: foto profesional, formato cuadrado, máx. 5MB
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
         )
