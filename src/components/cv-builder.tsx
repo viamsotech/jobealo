@@ -337,6 +337,11 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
     refreshStats()
   }, [refreshStats])
 
+  // Ensure scroll to top when CV Builder mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [])
+
   // Load existing CV if loadCVId is provided
   useEffect(() => {
     const loadExistingCV = async () => {

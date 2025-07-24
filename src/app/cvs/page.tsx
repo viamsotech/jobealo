@@ -19,26 +19,36 @@ export default function CVsPage() {
     setSelectedCVId(cvId)
     setIsCreatingNew(false)
     setPreviewData(null) // Close preview if open
+    // Scroll to top when editing a CV
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleCreateNew = () => {
     setSelectedCVId(null)
     setIsCreatingNew(true)
     setPreviewData(null) // Close preview if open
+    // Scroll to top when creating new CV (for consistency)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleBackToDashboard = () => {
     setSelectedCVId(null)
     setIsCreatingNew(false)
     setPreviewData(null) // Close preview if open
+    // Scroll to top when returning to dashboard
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handlePreviewCV = (cvData: CVData, cvTitle: string) => {
     setPreviewData({ cvData, title: cvTitle })
+    // Scroll to top when opening preview
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleClosePreview = () => {
     setPreviewData(null)
+    // Scroll to top when closing preview
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleCVSaved = (cvId: string) => {
