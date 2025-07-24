@@ -527,8 +527,8 @@ export function SavedCVsDashboard({ onSelectCV, onCreateNew, onPreviewCV }: Save
             return (
             <Card key={cv.id} className="group hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0 max-w-[calc(100%-120px)]">
                     {editingNameId === cv.id ? (
                       <div className="space-y-2">
                         <Input
@@ -568,8 +568,8 @@ export function SavedCVsDashboard({ onSelectCV, onCreateNew, onPreviewCV }: Save
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-lg truncate">{cv.title}</CardTitle>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CardTitle className="text-lg truncate flex-shrink min-w-0">{cv.title}</CardTitle>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -587,7 +587,7 @@ export function SavedCVsDashboard({ onSelectCV, onCreateNew, onPreviewCV }: Save
                       </>
                     )}
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-shrink-0">
                     {isComplete ? (
                       <Badge variant="default" className="bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3 mr-1" />
