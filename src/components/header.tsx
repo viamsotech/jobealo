@@ -21,7 +21,7 @@ export function Header({ onStartBuilder }: HeaderProps) {
     if (onStartBuilder) {
       onStartBuilder()
     } else {
-      router.push('/cvs')
+      window.location.href = '/cvs'
     }
   }
 
@@ -34,12 +34,12 @@ export function Header({ onStartBuilder }: HeaderProps) {
   }
 
   const handleMyCVs = () => {
-    router.push('/cvs')
+    window.location.href = '/cvs'
     closeMenu()
   }
 
   const handleLogoClick = () => {
-    router.push('/')
+    window.location.href = '/'
   }
 
   return (
@@ -76,13 +76,13 @@ export function Header({ onStartBuilder }: HeaderProps) {
               </button>
             )}
             <a
-              href="#pricing"
+              href="/#pricing"
               className="text-gray-700 hover:text-[#0052CC] font-medium transition-colors"
             >
               Precios
             </a>
             <a
-              href="#contact"
+              href="/#contact"
               className="text-gray-700 hover:text-[#0052CC] font-medium transition-colors"
             >
               Contacto
@@ -133,14 +133,14 @@ export function Header({ onStartBuilder }: HeaderProps) {
                   Construir CV
                 </button>
                 <a
-                  href="#pricing"
+                  href="/#pricing"
                   onClick={closeMenu}
                   className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2 inline-block"
                 >
                   Precios
                 </a>
                 <a
-                  href="#contact"
+                  href="/#contact"
                   onClick={closeMenu}
                   className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0052CC] transition-colors py-2 inline-block"
                 >
