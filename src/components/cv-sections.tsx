@@ -1299,8 +1299,12 @@ export function CVSections({
                         <SelectContent>
                           <SelectItem value="Bachillerato">Bachillerato</SelectItem>
                           <SelectItem value="Técnico">Técnico</SelectItem>
+                          <SelectItem value="Diplomado">Diplomado</SelectItem>
+                          <SelectItem value="Especialización">Especialización</SelectItem>
+                          <SelectItem value="En Curso">En Curso</SelectItem>
                           <SelectItem value="Licenciatura">Licenciatura</SelectItem>
                           <SelectItem value="Maestría">Maestría</SelectItem>
+                          <SelectItem value="Postgrado">Postgrado</SelectItem>
                           <SelectItem value="Doctorado">Doctorado</SelectItem>
                         </SelectContent>
                       </Select>
