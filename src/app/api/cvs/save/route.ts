@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     if (cvId) {
       // Update existing CV
-      const { data: existingCV } = await supabase
+      const { data: existingCV } = await supabaseAdmin
         .from('saved_cvs')
         .select('*')
         .eq('id', cvId)
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('saved_cvs')
         .update({
           title,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       savedCV = data
     } else {
       // Create new CV
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('saved_cvs')
         .insert({
           user_id: session.user.id,
