@@ -512,6 +512,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
   // Create downloadPDF function with complete logic
   const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english') => {
     try {
+      console.log('🔥 PDF Download Started - New Version with improved spacing')
       const actionType = language === 'english' ? 'DOWNLOAD_ENGLISH' : 'DOWNLOAD_SPANISH'
       const recordFunction = language === 'english' ? recordDownloadEnglish : recordDownloadSpanish
       
@@ -544,21 +545,15 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
 
       const headerColor = hexToRgb(cvData.headerColor)
 
-      // SMART PAGINATION: Function to calculate space needed for text
-      const calculateTextHeight = (text: string, fontSize: number) => {
-        doc.setFontSize(fontSize)
-        const lines = doc.splitTextToSize(text, usableWidth)
-        return lines.length * fontSize * 1.1 + 3
+      // SMART PAGINATION: Check if we're too close to page end (more aggressive)
+      const isNearPageEnd = (minSpaceNeeded: number = 150) => {
+        return currentY + minSpaceNeeded > pageHeight - margin
       }
 
-      // SMART PAGINATION: Function to check if section fits in remaining space
-      const checkSectionFits = (sectionHeight: number) => {
-        return currentY + sectionHeight <= pageHeight - margin - 50 // 50pt buffer for better appearance
-      }
-
-      // SMART PAGINATION: Function to start new page if section doesn't fit
-      const ensureSectionFits = (sectionHeight: number) => {
-        if (!checkSectionFits(sectionHeight)) {
+      // SMART PAGINATION: Move to next page if too close to end
+      const avoidOrphanContent = (minSpaceNeeded: number = 150) => {
+        if (isNearPageEnd(minSpaceNeeded)) {
+          console.log(`📄 NEW PAGE: Avoiding orphan content, needed ${minSpaceNeeded}px space`)
           doc.addPage()
           currentY = 50
         }
@@ -583,7 +578,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
         const lines = doc.splitTextToSize(text, usableWidth)
         
         // Only check for page break if forced (for individual items within sections)
-        if (forceNewPageCheck && currentY + (lines.length * fontSize * 1.1) > pageHeight - margin) {
+        if (forceNewPageCheck && currentY + (lines.length * fontSize * 1.3 + 5) > pageHeight - margin) {
           doc.addPage()
           currentY = 50
         }
@@ -596,7 +591,9 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
         }
         
         doc.text(lines, x, currentY, { align: align })
-        currentY += lines.length * fontSize * 1.1 + 3
+        const spacing = lines.length * fontSize * 1.3 + 5
+        console.log(`📏 Text spacing: ${spacing}px for "${text.substring(0, 20)}..."`)
+        currentY += spacing  // Better line spacing for readability
       }
 
       // OPTIMIZED: Function to add section line with better spacing
@@ -607,73 +604,11 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
         currentY += 10  // More space after line before content (like preview)
       }
 
-      // SMART PAGINATION: Calculate section title height
-      const calculateSectionTitleHeight = (title: string) => {
-        return 6 + calculateTextHeight(title, 11) + 10 // title padding + text + line spacing
-      }
-
       // OPTIMIZED: Function to add section title with better proportions
       const addSectionTitle = (title: string) => {
         currentY += 6
         addText(title, 11, true, 'header')
         addSectionLine()
-      }
-
-      // SMART PAGINATION: Calculate heights for different section types
-      const calculateSummaryHeight = () => {
-        if (!cvData.summary) return 0
-        return calculateSectionTitleHeight(translations.professionalSummary) + 
-               calculateTextHeight(cvData.summary, 10) + 8
-      }
-
-      const calculateSkillsHeight = () => {
-        if (cvData.skills.length === 0) return 0
-        const skillsText = cvData.skills.map(skill => `• ${skill}`).join('  ')
-        return calculateSectionTitleHeight(translations.coreCompetencies) + 
-               calculateTextHeight(skillsText, 10) + 8
-      }
-
-      const calculateToolsHeight = () => {
-        if (cvData.tools.length === 0) return 0
-        const toolsText = cvData.tools.map(tool => `• ${tool}`).join('  ')
-        return calculateSectionTitleHeight(translations.toolsTech) + 
-               calculateTextHeight(toolsText, 10) + 8
-      }
-
-      const calculateEducationHeight = () => {
-        if (cvData.education.length === 0) return 0
-        let height = calculateSectionTitleHeight(translations.education)
-        cvData.education.forEach(() => {
-          height += 12 // Each education item height
-        })
-        return height + 8
-      }
-
-      const calculateCertificationsHeight = () => {
-        if (!cvData.certifications.enabled || cvData.certifications.items.length === 0) return 0
-        let height = calculateSectionTitleHeight(translations.certifications)
-        cvData.certifications.items.forEach(cert => {
-          const certText = `• ${cert.name} – ${cert.institution}, ${cert.year}`
-          height += calculateTextHeight(certText, 10) + 1
-        })
-        return height + 8
-      }
-
-      const calculateLanguagesHeight = () => {
-        if (cvData.languages.length === 0) return 0
-        const languagesText = cvData.languages.map(lang => `• ${lang.language}: ${lang.level}`).join('  ')
-        return calculateSectionTitleHeight(translations.languages) + 
-               calculateTextHeight(languagesText, 10) + 8
-      }
-
-      const calculateReferencesHeight = () => {
-        if (!cvData.references.enabled || cvData.references.items.length === 0) return 0
-        let height = calculateSectionTitleHeight(translations.references)
-        cvData.references.items.forEach(ref => {
-          const refText = `• ${ref.name} – ${ref.company}, ${ref.phone}`
-          height += calculateTextHeight(refText, 10) + 1
-        })
-        return height
       }
 
       // Translations based on language
@@ -791,32 +726,26 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
       currentY += 12
 
       // ========== SMART PAGINATION SECTIONS ==========
-      // SUMMARY - Check if section fits, if not move to next page
+      // SUMMARY - Avoid orphan sections
       if (cvData.summary) {
-        const summaryHeight = calculateSummaryHeight()
-        ensureSectionFits(summaryHeight)
-        
+        avoidOrphanContent(120) // Need space for title + meaningful content
         addSectionTitle(translations.professionalSummary)
         addText(cvData.summary, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
-      // SKILLS - Check if section fits, if not move to next page
+      // SKILLS - Avoid orphan sections
       if (cvData.skills.length > 0) {
-        const skillsHeight = calculateSkillsHeight()
-        ensureSectionFits(skillsHeight)
-        
+        avoidOrphanContent(100) // Need space for title + skills list
         addSectionTitle(translations.coreCompetencies)
         const skillsText = cvData.skills.map(skill => `• ${skill}`).join('  ')
         addText(skillsText, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
-      // TOOLS - Check if section fits, if not move to next page
+      // TOOLS - Avoid orphan sections
       if (cvData.tools.length > 0) {
-        const toolsHeight = calculateToolsHeight()
-        ensureSectionFits(toolsHeight)
-        
+        avoidOrphanContent(100) // Need space for title + tools list
         addSectionTitle(translations.toolsTech)
         const toolsText = cvData.tools.map(tool => `• ${tool}`).join('  ')
         addText(toolsText, 10, false, 'gray')
@@ -825,62 +754,38 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
 
       // EXPERIENCE - Special handling: Can split between jobs but not within a job
       if (cvData.experience.enabled && cvData.experience.items.length > 0) {
-        // Always add the section title (if first job doesn't fit, it will move to next page)
-        const sectionTitleHeight = calculateSectionTitleHeight(translations.professionalExperience)
-        ensureSectionFits(sectionTitleHeight + 50) // Ensure at least some content fits
+        // Ensure we have space for section title + at least first job
+        avoidOrphanContent(160) // Need space for title + meaningful job content
         addSectionTitle(translations.professionalExperience)
         
         cvData.experience.items.forEach((exp, index) => {
-          // Calculate height needed for this entire job entry
-          let jobHeight = 14 // Job title line
-          
-          if (exp.responsibilities.length > 0) {
-            const validResponsibilities = exp.responsibilities.filter(r => r.trim())
-            validResponsibilities.forEach(resp => {
-              const respText = `• ${resp}`
-              jobHeight += calculateTextHeight(respText, 10) + 1
-            })
-          }
-          
-          if (index < cvData.experience.items.length - 1) {
-            jobHeight += 12 // Space between jobs
-          }
-          
-          // Check if this entire job fits, if not move to next page
-          if (!checkSectionFits(jobHeight)) {
+          // For each job, check if we have reasonable space (avoid tiny job entries at page end)
+          if (isNearPageEnd(120)) { // Need at least 120pt for job title + responsibilities
             doc.addPage()
             currentY = 50
           }
           
           // Now add the job content (we know it fits)
           const jobTitle = `${exp.position} | ${exp.company}`;
-          doc.setFontSize(11)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(0, 0, 0)
-          doc.text(jobTitle, margin, currentY)
+          addText(jobTitle, 11, true, 'black')
           
           if (exp.period) {
+            // Position period on the right side, accounting for the improved spacing
+            currentY -= 20 // Go back to align with job title
             doc.setFontSize(9)
             doc.setFont('helvetica', 'normal')
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(exp.period)
             doc.text(exp.period, pageWidth - margin - periodWidth, currentY)
+            currentY += 22 // Move forward with proper spacing
           }
-          
-          currentY += 14
 
           if (exp.responsibilities.length > 0) {
             const validResponsibilities = exp.responsibilities.filter(r => r.trim())
             validResponsibilities.forEach(resp => {
-              doc.setFontSize(10)
-              doc.setFont('helvetica', 'normal')
-              doc.setTextColor(85, 85, 85)
-              
               const respText = `• ${resp}`
-              const lines = doc.splitTextToSize(respText, usableWidth)
-              
-              doc.text(lines, margin, currentY)
-              currentY += lines.length * 10 * 1.1 + 1
+              // Use addText for consistent spacing
+              addText(respText, 10, false, 'gray')
             })
           }
           
@@ -891,69 +796,61 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
-      // EDUCATION - Check if section fits, if not move to next page
+      // EDUCATION - Avoid orphan sections
       if (cvData.education.length > 0) {
-        const educationHeight = calculateEducationHeight()
-        ensureSectionFits(educationHeight)
-        
+        avoidOrphanContent(100) // Need space for title + at least one education item
         addSectionTitle(translations.education)
         
         cvData.education.forEach(edu => {
           const eduText = `• ${edu.level} en ${edu.degree} – ${edu.university}`
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(85, 85, 85)
-          doc.text(eduText, margin, currentY)
+          
+          // Use addText for consistent spacing
+          addText(eduText, 10, false, 'gray')
           
           if (edu.period) {
+            // Position period on the right side, accounting for the improved spacing
+            currentY -= 18 // Go back to align with education text
             doc.setFontSize(9)
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(edu.period)
             doc.text(edu.period, pageWidth - margin - periodWidth, currentY)
+            currentY += 20 // Move forward with proper spacing
           }
-          
-          currentY += 12
         })
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
-      // CERTIFICATIONS - Check if section fits, if not move to next page
+      // CERTIFICATIONS - Avoid orphan sections
       if (cvData.certifications.enabled && cvData.certifications.items.length > 0) {
-        const certificationsHeight = calculateCertificationsHeight()
-        ensureSectionFits(certificationsHeight)
-        
+        avoidOrphanContent(100) // Need space for title + at least one certification
         addSectionTitle(translations.certifications)
         
         cvData.certifications.items.forEach(cert => {
           const certText = `• ${cert.name} – ${cert.institution}, ${cert.year}`
           addText(certText, 10, false, 'gray')
-          currentY += 1
+          currentY += 3  // Better spacing between certifications
         })
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
-      // LANGUAGES - Check if section fits, if not move to next page
+      // LANGUAGES - Avoid orphan sections
       if (cvData.languages.length > 0) {
-        const languagesHeight = calculateLanguagesHeight()
-        ensureSectionFits(languagesHeight)
-        
+        avoidOrphanContent(80) // Need space for title + languages line
         addSectionTitle(translations.languages)
         const languagesText = cvData.languages.map(lang => `• ${lang.language}: ${lang.level}`).join('  ')
         addText(languagesText, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
-      // REFERENCES - Check if section fits, if not move to next page
+      // REFERENCES - Avoid orphan sections
       if (cvData.references.enabled && cvData.references.items.length > 0) {
-        const referencesHeight = calculateReferencesHeight()
-        ensureSectionFits(referencesHeight)
-        
+        avoidOrphanContent(100) // Need space for title + at least one reference
         addSectionTitle(translations.references)
         
         cvData.references.items.forEach(ref => {
           const refText = `• ${ref.name} – ${ref.company}, ${ref.phone}`
           addText(refText, 10, false, 'gray')
-          currentY += 1
+          currentY += 3  // Better spacing between references
         })
         // No extra spacing after last section
       }
@@ -974,6 +871,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
       })
 
       // Download PDF
+      console.log('✅ PDF Generated successfully with improved spacing and pagination')
       doc.save(fileName)
       
       return true

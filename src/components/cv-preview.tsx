@@ -402,6 +402,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
   // Create downloadPDF function with complete logic (NO action checking - only PDF generation)
   const downloadPDF = async (cvData: CVData, language: 'spanish' | 'english', skipActionRecording: boolean = false) => {
     try {
+      console.log('🔥 REAL PDF Download Started - cv-preview.tsx - FINE-TUNED VERSION with optimal title/line spacing')
       const recordFunction = language === 'english' ? recordDownloadEnglish : recordDownloadSpanish
       
       // Verificar que estamos en el cliente
@@ -433,6 +434,20 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
 
       const headerColor = hexToRgb(cvData.headerColor)
 
+      // SMART PAGINATION: Check if we're too close to page end (balanced approach)
+      const isNearPageEnd = (minSpaceNeeded: number = 100) => {
+        return currentY + minSpaceNeeded > pageHeight - margin
+      }
+
+      // SMART PAGINATION: Move to next page if too close to end
+      const avoidOrphanContent = (minSpaceNeeded: number = 100) => {
+        if (isNearPageEnd(minSpaceNeeded)) {
+          console.log(`📄 NEW PAGE: Avoiding orphan content, needed ${minSpaceNeeded}px space`)
+          doc.addPage()
+          currentY = 50
+        }
+      }
+
       // OPTIMIZED: Function to add text with better proportions
       const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = 'black', align: 'left' | 'center' | 'right' = 'left') => {
         doc.setFontSize(fontSize)
@@ -451,8 +466,13 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         
         const lines = doc.splitTextToSize(text, usableWidth)
         
-        // Check if we need a new page
-        if (currentY + (lines.length * fontSize * 1.1) > pageHeight - margin) {
+        // Special compact spacing for section titles (headers)
+        const isTitle = (color === 'header' && isBold)
+        const baseSpacing = isTitle ? 1.1 : 1.2  // Tighter spacing for titles
+        const extraSpacing = isTitle ? 1 : 3     // Less extra space for titles
+        
+        // Check if we need a new page (improved spacing)
+        if (currentY + (lines.length * fontSize * baseSpacing + extraSpacing) > pageHeight - margin) {
           doc.addPage()
           currentY = 50
         }
@@ -465,20 +485,22 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         }
         
         doc.text(lines, x, currentY, { align: align })
-        currentY += lines.length * fontSize * 1.1 + 3
+        const spacing = lines.length * fontSize * baseSpacing + extraSpacing
+        console.log(`📏 Text spacing: ${spacing}px for "${text.substring(0, 20)}..." ${isTitle ? '(TITLE)' : '(CONTENT)'}`)
+        currentY += spacing
       }
 
       // OPTIMIZED: Function to add section line with better spacing
       const addSectionLine = () => {
         doc.setDrawColor(headerColor.r, headerColor.g, headerColor.b)
         doc.setLineWidth(0.5)
-        doc.line(margin, currentY - 2, pageWidth - margin, currentY - 2)
-        currentY += 10  // More space after line before content (like preview)
+        doc.line(margin, currentY - 8, pageWidth - margin, currentY - 8)  // Line closer to title (6pt higher)
+        currentY += 10  // More space after line to compensate and add extra spacing
       }
 
       // OPTIMIZED: Function to add section title with better proportions
       const addSectionTitle = (title: string) => {
-        currentY += 6
+        currentY += 3  // Reduced from 6 to 3
         addText(title, 11, true, 'header')
         addSectionLine()
       }
@@ -597,64 +619,67 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       // Add double spacing after header before first section
       currentY += 12
 
-      // ========== OPTIMIZED SECTIONS ==========
+      // ========== SMART PAGINATION SECTIONS ==========
+      // SUMMARY - Avoid orphan sections
       if (cvData.summary) {
+        avoidOrphanContent(80) // Reduced from 120 to 80 - balanced space needed
         addSectionTitle(translations.professionalSummary)
         addText(cvData.summary, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // SKILLS - Avoid orphan sections
       if (cvData.skills.length > 0) {
+        avoidOrphanContent(70) // Reduced from 100 to 70 - balanced space needed
         addSectionTitle(translations.coreCompetencies)
         const skillsText = cvData.skills.map(skill => `• ${skill}`).join('  ')
         addText(skillsText, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // TOOLS - Avoid orphan sections
       if (cvData.tools.length > 0) {
+        avoidOrphanContent(70) // Reduced from 100 to 70 - balanced space needed
         addSectionTitle(translations.toolsTech)
         const toolsText = cvData.tools.map(tool => `• ${tool}`).join('  ')
         addText(toolsText, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // EXPERIENCE - Special handling: Can split between jobs but not within a job
       if (cvData.experience.enabled && cvData.experience.items.length > 0) {
+        // Ensure we have space for section title + at least first job
+        avoidOrphanContent(100) // Reduced from 160 to 100 - balanced space needed
         addSectionTitle(translations.professionalExperience)
         
         cvData.experience.items.forEach((exp, index) => {
+          // For each job, check if we have reasonable space (avoid tiny job entries at page end)
+          if (isNearPageEnd(80)) { // Reduced from 120 to 80 - moderate space for job content
+            doc.addPage()
+            currentY = 50
+          }
+          
+          // Now add the job content (we know it fits)
           const jobTitle = `${exp.position} | ${exp.company}`;
-          doc.setFontSize(11)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(0, 0, 0)
-          doc.text(jobTitle, margin, currentY)
+          addText(jobTitle, 11, true, 'black')
           
           if (exp.period) {
+            // Position period on the right side, accounting for the improved spacing
+            currentY -= 14 // Reduced from 20 to 14 - go back to align with job title
             doc.setFontSize(9)
             doc.setFont('helvetica', 'normal')
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(exp.period)
             doc.text(exp.period, pageWidth - margin - periodWidth, currentY)
+            currentY += 16 // Reduced from 22 to 16 - moderate spacing
           }
-          
-          currentY += 14
 
           if (exp.responsibilities.length > 0) {
             const validResponsibilities = exp.responsibilities.filter(r => r.trim())
             validResponsibilities.forEach(resp => {
-              doc.setFontSize(10)
-              doc.setFont('helvetica', 'normal')
-              doc.setTextColor(85, 85, 85)
-              
               const respText = `• ${resp}`
-              const lines = doc.splitTextToSize(respText, usableWidth)
-              
-              if (currentY + (lines.length * 10 * 1.1) > pageHeight - margin) {
-                doc.addPage()
-                currentY = 50
-              }
-              
-              doc.text(lines, margin, currentY)
-              currentY += lines.length * 10 * 1.1 + 1
+              // Use addText for consistent spacing
+              addText(respText, 10, false, 'gray')
             })
           }
           
@@ -665,53 +690,61 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // EDUCATION - Avoid orphan sections
       if (cvData.education.length > 0) {
+        avoidOrphanContent(70) // Reduced from 100 to 70 - balanced space needed
         addSectionTitle(translations.education)
         
         cvData.education.forEach(edu => {
           const eduText = `• ${edu.level} en ${edu.degree} – ${edu.university}`
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(85, 85, 85)
-          doc.text(eduText, margin, currentY)
+          
+          // Use addText for consistent spacing
+          addText(eduText, 10, false, 'gray')
           
           if (edu.period) {
+            // Position period on the right side, accounting for the improved spacing
+            currentY -= 12 // Reduced from 18 to 12 - go back to align with education text
             doc.setFontSize(9)
             doc.setTextColor(100, 100, 100)
             const periodWidth = doc.getTextWidth(edu.period)
             doc.text(edu.period, pageWidth - margin - periodWidth, currentY)
+            currentY += 14 // Reduced from 20 to 14 - moderate spacing
           }
-          
-          currentY += 12
         })
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // CERTIFICATIONS - Avoid orphan sections
       if (cvData.certifications.enabled && cvData.certifications.items.length > 0) {
+        avoidOrphanContent(70) // Reduced from 100 to 70 - balanced space needed
         addSectionTitle(translations.certifications)
         
         cvData.certifications.items.forEach(cert => {
           const certText = `• ${cert.name} – ${cert.institution}, ${cert.year}`
           addText(certText, 10, false, 'gray')
-          currentY += 1
+          currentY += 1  // Reduced from 3 to 1 - subtle spacing between certifications
         })
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // LANGUAGES - Avoid orphan sections
       if (cvData.languages.length > 0) {
+        avoidOrphanContent(60) // Reduced from 80 to 60 - balanced space needed
         addSectionTitle(translations.languages)
         const languagesText = cvData.languages.map(lang => `• ${lang.language}: ${lang.level}`).join('  ')
         addText(languagesText, 10, false, 'gray')
         currentY += 8  // Double spacing like mb-6 in preview
       }
 
+      // REFERENCES - Avoid orphan sections
       if (cvData.references.enabled && cvData.references.items.length > 0) {
+        avoidOrphanContent(70) // Reduced from 100 to 70 - balanced space needed
         addSectionTitle(translations.references)
         
         cvData.references.items.forEach(ref => {
           const refText = `• ${ref.name} – ${ref.company}, ${ref.phone}`
           addText(refText, 10, false, 'gray')
-          currentY += 1
+          currentY += 1  // Reduced from 3 to 1 - subtle spacing between references
         })
         // No extra spacing after last section
       }
@@ -734,6 +767,7 @@ export function CVPreview({ data, isEnglishVersion = false, isComplete = true }:
       }
 
       // Download PDF
+      console.log('✅ REAL PDF Generated successfully with OPTIMAL title/line spacing and smart pagination - cv-preview.tsx')
       doc.save(fileName)
       
       return true
