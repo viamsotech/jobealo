@@ -43,7 +43,7 @@ export function Header({ onStartBuilder }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-gray-200">
+    <header className="sticky top-0 z-60 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -111,7 +111,7 @@ export function Header({ onStartBuilder }: HeaderProps) {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-70">
             <div className="max-w-7xl mx-auto px-4 md:px-6">
               <div className="py-4 space-y-4">
                 {session && (

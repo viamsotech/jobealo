@@ -120,3 +120,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .z-60 {
+    z-index: 60;
+  }
+  .z-70 {
+    z-index: 70;
+  }
+}

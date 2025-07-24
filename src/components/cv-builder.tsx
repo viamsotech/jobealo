@@ -1060,7 +1060,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
   if (showEnglishPreview && translatedData) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="sticky top-0 z-50 bg-white border-b">
+        <div className="sticky top-16 z-40 bg-white border-b">
           {/* Header Mobile - Layout vertical */}
           <div className="md:hidden">
             {/* Nivel 1: Logo */}
@@ -1217,7 +1217,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
   if (showPreview) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="sticky top-0 z-50 bg-white border-b">
+        <div className="sticky top-16 z-40 bg-white border-b">
           {/* Header Mobile - Layout vertical */}
           <div className="md:hidden">
             {/* Nivel 1: Logo */}
@@ -1502,7 +1502,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white border-b">
+      <div className="sticky top-16 z-40 bg-white border-b">
         {/* Nivel 1: Botón volver + Logo (solo mobile) */}
         <div className="px-4 py-3 border-b md:hidden">
           <div className="flex items-center justify-between max-w-7xl mx-auto">

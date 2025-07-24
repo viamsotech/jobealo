@@ -68,7 +68,7 @@ export default function CVsPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="sticky top-0 z-50 bg-white border-b">
+        <div className="sticky top-16 z-40 bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
