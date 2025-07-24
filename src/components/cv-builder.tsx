@@ -448,7 +448,7 @@ export function CVBuilder({ onBack, loadCVId, onSave }: CVBuilderProps) {
         setHasUnsavedChanges(false)
         setShowSaveModal(false)
         setCurrentCVTitle(title)  // ✅ FIX: Actualizar el título mostrado inmediatamente
-        setCustomCVName("")
+        setCustomCVName(title)    // ✅ FIX: Mantener el título usado para futuras operaciones de guardado
         
         const message = currentCVId ? 'CV actualizado exitosamente' : 'CV guardado exitosamente'
         showSuccess(message)
