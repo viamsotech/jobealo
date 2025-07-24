@@ -527,10 +527,11 @@ export function SavedCVsDashboard({ onSelectCV, onCreateNew, onPreviewCV }: Save
             return (
             <Card key={cv.id} className="group hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0 max-w-[calc(100%-120px)]">
-                    {editingNameId === cv.id ? (
-                      <div className="space-y-2">
+                <div className="space-y-2">
+                  {/* Title and Badges Grid - Fixed Layout */}
+                  <div className="grid grid-cols-[1fr,auto] gap-4 items-center">
+                    <div className="min-w-0 overflow-hidden">
+                      {editingNameId === cv.id ? (
                         <Input
                           value={newName}
                           onChange={(e) => setNewName(e.target.value)}
@@ -545,66 +546,72 @@ export function SavedCVsDashboard({ onSelectCV, onCreateNew, onPreviewCV }: Save
                           }}
                           autoFocus
                         />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveRename(cv.id)}
-                            disabled={renamingId === cv.id || !newName.trim()}
-                          >
-                            {renamingId === cv.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                            ) : null}
-                            Guardar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCancelRename}
-                            disabled={renamingId === cv.id}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
+                      ) : (
                         <div className="flex items-center gap-2 min-w-0">
-                          <CardTitle className="text-lg truncate flex-shrink min-w-0">{cv.title}</CardTitle>
+                          <CardTitle className="text-lg truncate">{cv.title}</CardTitle>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleStartRename(cv.id, cv.title)}
-                            className="p-1 h-auto w-auto text-gray-500 hover:text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="p-1 h-auto w-auto text-gray-500 hover:text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                             title="Editar nombre"
                           >
                             <Edit3 className="w-3 h-3" />
                           </Button>
                         </div>
-                        <CardDescription className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {cv.firstName} {cv.lastName}
-                        </CardDescription>
-                      </>
-                    )}
+                      )}
+                    </div>
+                    <div className="flex gap-1 whitespace-nowrap">
+                      {isComplete ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Completo
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                          <TrendingUp className="w-3 h-3 mr-1" />
+                          {completionPercentage}%
+                        </Badge>
+                      )}
+                      {cv.isTemplate && (
+                        <Badge variant="outline">
+                          Plantilla
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    {isComplete ? (
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Completo
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        {completionPercentage}%
-                      </Badge>
-                    )}
-                    {cv.isTemplate && (
-                      <Badge variant="outline">
-                        Plantilla
-                      </Badge>
-                    )}
-                  </div>
+                  
+                  {/* Edit Actions Row (only when editing) */}
+                  {editingNameId === cv.id && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveRename(cv.id)}
+                        disabled={renamingId === cv.id || !newName.trim()}
+                      >
+                        {renamingId === cv.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : null}
+                        Guardar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelRename}
+                        disabled={renamingId === cv.id}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* User Info Row */}
+                  {editingNameId !== cv.id && (
+                    <CardDescription className="flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      {cv.firstName} {cv.lastName}
+                    </CardDescription>
+                  )}
                 </div>
               </CardHeader>
 
