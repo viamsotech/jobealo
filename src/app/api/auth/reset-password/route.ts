@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with this reset token
-    const { data: user } = await supabase
+    const { data: user } = await supabaseAdmin
       .from('users')
       .select('id, reset_token_expiry')
       .eq('reset_token', token)
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, saltRounds)
 
     // Update password and clear reset token
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('users')
       .update({
         provider_id: hashedPassword, // Store hashed password as provider_id

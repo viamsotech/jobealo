@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         let fingerprintRecord
         try {
           // Try to get existing fingerprint
-          const { data: existingFingerprint, error: selectError } = await supabase
+          const { data: existingFingerprint, error: selectError } = await supabaseAdmin
             .from('user_fingerprints')
             .select('*')
             .eq('fingerprint_hash', fingerprintHash)
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
             fingerprintRecord = existingFingerprint
           } else {
             // Create new fingerprint if it doesn't exist
-            const { data: newFingerprint, error: insertError } = await supabase
+            const { data: newFingerprint, error: insertError } = await supabaseAdmin
               .from('user_fingerprints')
               .insert({
                 fingerprint_hash: fingerprintHash,
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
         // Record the action in the actions table
         try {
-          const { error: actionError } = await supabase
+          const { error: actionError } = await supabaseAdmin
             .from('user_actions')
             .insert({
               fingerprint_id: fingerprintRecord.id,
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
         let fingerprintRecord
         try {
           // Try to get existing fingerprint
-          const { data: existingFingerprint, error: selectError } = await supabase
+          const { data: existingFingerprint, error: selectError } = await supabaseAdmin
             .from('user_fingerprints')
             .select('*')
             .eq('fingerprint_hash', fingerprintHash)
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
             fingerprintRecord = existingFingerprint
           } else {
             // Create new fingerprint if it doesn't exist
-            const { data: newFingerprint, error: insertError } = await supabase
+            const { data: newFingerprint, error: insertError } = await supabaseAdmin
               .from('user_fingerprints')
               .insert({
                 fingerprint_hash: fingerprintHash,
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
 
         // Record the download in the downloads table with correct fingerprint_id
         try {
-          const { error: downloadError } = await supabase
+          const { error: downloadError } = await supabaseAdmin
             .from('downloads')
             .insert({
               fingerprint_id: fingerprintRecord.id, // Usar el fingerprint_id correcto
@@ -320,7 +320,7 @@ export async function POST(request: NextRequest) {
       const amount = paymentIntent.amount / 100 // Convert cents to dollars
 
       // Update user plan in database
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseAdmin
         .from('users')
         .update({
           plan: planType,
@@ -337,7 +337,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Record the purchase
-      const { error: purchaseError } = await supabase
+      const { error: purchaseError } = await supabaseAdmin
         .from('individual_purchases')
         .insert({
           user_id: session.user.id,

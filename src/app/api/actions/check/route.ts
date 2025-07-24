@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       
       try {
         // Try to get existing fingerprint
-        const { data: existingFingerprint, error: selectError } = await supabase
+        const { data: existingFingerprint, error: selectError } = await supabaseAdmin
           .from('user_fingerprints')
           .select('*')
           .eq('fingerprint_hash', fingerprint)
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         if (!existingFingerprint) {
           // Create new fingerprint record
-          const { data: newFingerprint, error: insertError } = await supabase
+          const { data: newFingerprint, error: insertError } = await supabaseAdmin
             .from('user_fingerprints')
             .insert({
               fingerprint_hash: fingerprint,
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
       // Now check how many actions they've already used with the correct fingerprint_id
       // Count ALL actions together, not per action type (total limit is 3 actions, not 3 per type)
-      const { data: actionsCount, error: countError } = await supabase
+      const { data: actionsCount, error: countError } = await supabaseAdmin
         .from('user_actions')
         .select('id')
         .eq('fingerprint_id', fingerprintRecord.id) // Use the actual fingerprint ID, not the hash
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     // For authenticated users, use the database function
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .rpc('can_perform_action', {
         p_fingerprint_id: fingerprint,
         p_user_id: userId,

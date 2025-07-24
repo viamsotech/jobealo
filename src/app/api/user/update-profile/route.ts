@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     // Check if email is already taken by another user
     if (email !== session.user.email) {
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await supabaseAdmin
         .from('users')
         .select('id')
         .eq('email', email.toLowerCase())
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     }
 
     // Update user in database
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('users')
       .update({
         name: name.trim(),

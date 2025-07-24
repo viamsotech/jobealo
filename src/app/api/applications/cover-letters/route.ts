@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get cover letters for the specific CV
-    const { data: coverLetters, error } = await supabase
+    const { data: coverLetters, error } = await supabaseAdmin
       .from('cover_letters')
       .select('*')
       .eq('cv_id', cvId)
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has 3 cover letters for this CV
-    const { data: existingCoverLetters, error: countError } = await supabase
+    const { data: existingCoverLetters, error: countError } = await supabaseAdmin
       .from('cover_letters')
       .select('id')
       .eq('cv_id', cvId)
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new cover letter
-    const { data: coverLetter, error } = await supabase
+    const { data: coverLetter, error } = await supabaseAdmin
       .from('cover_letters')
       .insert({
         user_id: session.user.id,

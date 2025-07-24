@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       
       try {
         // Try to get existing fingerprint
-        const { data: existingFingerprint, error: selectError } = await supabase
+        const { data: existingFingerprint, error: selectError } = await supabaseAdmin
           .from('user_fingerprints')
           .select('*')
           .eq('fingerprint_hash', fingerprint)
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         if (!existingFingerprint) {
           // Create new fingerprint record
-          const { data: newFingerprint, error: insertError } = await supabase
+          const { data: newFingerprint, error: insertError } = await supabaseAdmin
             .from('user_fingerprints')
             .insert({
               fingerprint_hash: fingerprint,
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       // Get stats for anonymous user using the correct fingerprint_id
       try {
         // Count total actions
-        const { count: totalActions, error: totalError } = await supabase
+        const { count: totalActions, error: totalError } = await supabaseAdmin
           .from('user_actions')
           .select('*', { count: 'exact', head: true })
           .eq('fingerprint_id', fingerprintRecord.id)
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Count free actions (those with amount_paid = 0)
-        const { count: freeActions, error: freeError } = await supabase
+        const { count: freeActions, error: freeError } = await supabaseAdmin
           .from('user_actions')
           .select('*', { count: 'exact', head: true })
           .eq('fingerprint_id', fingerprintRecord.id)
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Count paid actions
-        const { count: paidActions, error: paidError } = await supabase
+        const { count: paidActions, error: paidError } = await supabaseAdmin
           .from('user_actions')
           .select('*', { count: 'exact', head: true })
           .eq('fingerprint_id', fingerprintRecord.id)
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the database function to get user statistics for authenticated users
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .rpc('get_user_action_stats', {
         p_fingerprint_id: fingerprint,
         p_user_id: userId || null

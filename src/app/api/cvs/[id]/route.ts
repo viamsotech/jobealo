@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
@@ -20,7 +20,7 @@ export async function GET(
     const { id: cvId } = await params
 
     // Get the specific CV
-    const { data: cv, error } = await supabase
+    const { data: cv, error } = await supabaseAdmin
       .from('saved_cvs')
       .select('*')
       .eq('id', cvId)
@@ -77,7 +77,7 @@ export async function DELETE(
     const { id: cvId } = await params
 
     // Check if CV exists and belongs to user
-    const { data: cv } = await supabase
+    const { data: cv } = await supabaseAdmin
       .from('saved_cvs')
       .select('id')
       .eq('id', cvId)
@@ -92,7 +92,7 @@ export async function DELETE(
     }
 
     // Delete the CV
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('saved_cvs')
       .delete()
       .eq('id', cvId)

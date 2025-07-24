@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if fingerprint exists
-    const { data: fingerprint, error: selectError } = await supabase
+    const { data: fingerprint, error: selectError } = await supabaseAdmin
       .from('user_fingerprints')
       .select('*')
       .eq('fingerprint_hash', fingerprintHash)
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     
     if (!fingerprint) {
       // Create new fingerprint linked to user
-      const { data: newFingerprint, error: insertError } = await supabase
+      const { data: newFingerprint, error: insertError } = await supabaseAdmin
         .from('user_fingerprints')
         .insert({
           fingerprint_hash: fingerprintHash,
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     
     // Update existing fingerprint to link to user
     if (fingerprint.user_id !== session.user.id) {
-      const { data: updatedFingerprint, error: updateError } = await supabase
+      const { data: updatedFingerprint, error: updateError } = await supabaseAdmin
         .from('user_fingerprints')
         .update({ user_id: session.user.id })
         .eq('fingerprint_hash', fingerprintHash)

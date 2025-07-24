@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get emails for the specific CV
-    const { data: emails, error } = await supabase
+    const { data: emails, error } = await supabaseAdmin
       .from('application_emails')
       .select('*')
       .eq('cv_id', cvId)
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has 3 emails for this CV
-    const { data: existingEmails, error: countError } = await supabase
+    const { data: existingEmails, error: countError } = await supabaseAdmin
       .from('application_emails')
       .select('id')
       .eq('cv_id', cvId)
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new email
-    const { data: email, error } = await supabase
+    const { data: email, error } = await supabaseAdmin
       .from('application_emails')
       .insert({
         user_id: session.user.id,

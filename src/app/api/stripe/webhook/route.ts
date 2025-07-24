@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { stripe, WEBHOOK_EVENTS } from '@/lib/stripe'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import Stripe from 'stripe'
 
 export async function POST(request: NextRequest) {
@@ -78,7 +78,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     
     try {
       // Record the individual purchase
-      const { error: purchaseError } = await supabase
+      const { error: purchaseError } = await supabaseAdmin
         .from('individual_purchases')
         .insert({
           user_id: userId, // Can be null for non-registered users
@@ -127,7 +127,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
 
     // Update user plan in database
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({
         plan: newPlan,
@@ -143,7 +143,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
 
     // Record the purchase
-    const { error: purchaseError } = await supabase
+    const { error: purchaseError } = await supabaseAdmin
       .from('individual_purchases')
       .insert({
         user_id: userId,
@@ -188,7 +188,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   try {
     // Downgrade user to FREEMIUM
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({
         plan: 'FREEMIUM',

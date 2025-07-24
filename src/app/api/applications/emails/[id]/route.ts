@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function PUT(
   request: NextRequest,
@@ -38,7 +38,7 @@ export async function PUT(
     }
 
     // Update the email
-    const { data: email, error } = await supabase
+    const { data: email, error } = await supabaseAdmin
       .from('application_emails')
       .update({
         title: title.trim(),
@@ -97,7 +97,7 @@ export async function DELETE(
     }
 
     // Delete the email (RLS policy ensures user can only delete their own emails)
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('application_emails')
       .delete()
       .eq('id', emailId)
