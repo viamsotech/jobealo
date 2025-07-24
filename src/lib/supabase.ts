@@ -4,7 +4,22 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ymldnzlozbhjtjrlyclk.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key-here'
 
+// Service role key for backend operations (bypasses RLS)
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Service role client for backend API operations
+export const supabaseAdmin = createClient(
+  supabaseUrl, 
+  supabaseServiceKey || supabaseAnonKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
 
 // Type definitions for our tables (much simpler than Prisma)
 export interface UserFingerprint {

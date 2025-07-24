@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       
       try {
         // Try to get existing fingerprint
-        const { data: existingFingerprint, error: selectError } = await supabase
+        const { data: existingFingerprint, error: selectError } = await supabaseAdmin
           .from('user_fingerprints')
           .select('*')
           .eq('fingerprint_hash', fingerprint)
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
         if (!existingFingerprint) {
           // Create new fingerprint record
-          const { data: newFingerprint, error: insertError } = await supabase
+          const { data: newFingerprint, error: insertError } = await supabaseAdmin
             .from('user_fingerprints')
             .insert({
               fingerprint_hash: fingerprint,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
       // For anonymous users, record the action directly in the database with the correct fingerprint_id
       try {
-        const { data: actionRecord, error: insertError } = await supabase
+        const { data: actionRecord, error: insertError } = await supabaseAdmin
           .from('user_actions')
           .insert({
             fingerprint_id: fingerprintRecord.id, // Use the actual fingerprint ID, not the hash
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the database function to record the action
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .rpc('record_user_action', {
         p_fingerprint_id: fingerprint,
         p_user_id: userId || null,
